@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+build/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
+
+# Misc
+*.log
+.DS_Store

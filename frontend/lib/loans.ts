@@ -16,7 +16,7 @@ export interface LoanRequest {
   created_at: string;
   funded_at: string | null;
   due_date: string | null;
-  profiles?: { name: string; reputation_score: number };
+  profiles?: { name: string; reputation_score: number; wallet_address?: string };
 }
 
 // Create a new loan request
@@ -46,7 +46,7 @@ export async function createLoanRequest(
 export async function fetchPendingLoans(currentUserId: string): Promise<LoanRequest[]> {
   const { data, error } = await supabase
     .from("loan_requests")
-    .select("*, profiles!loan_requests_borrower_id_fkey(name, reputation_score)")
+    .select("*, profiles!loan_requests_borrower_id_fkey(name, reputation_score, wallet_address)")
     .eq("status", "pending")
     .neq("borrower_id", currentUserId)
     .order("created_at", { ascending: false });

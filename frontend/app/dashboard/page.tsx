@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import WalletCard from "@/components/WalletCard";
 import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, type Loan } from "@/services/loanService";
 import { getPoolStats, getUserTotalDeposited } from "@/services/poolService";
@@ -227,6 +228,10 @@ export default function DashboardPage() {
               </button>
             </div>
 
+            {/* Smart Wallet Card */}
+            <WalletCard />
+
+            {/* Desktop: quick stats panel */}
             <div className="hidden lg:block bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mt-1">
               <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Pool & Your Stats</p>
               <div className="flex flex-col gap-3">

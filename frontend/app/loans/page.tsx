@@ -5,9 +5,13 @@ import Navbar from "@/components/Navbar";
 import LoanCard from "@/components/LoanCard";
 import { createClient } from "@/utils/supabase/client";
 import { fetchPendingLoans, fundLoan, type LoanRequest } from "@/lib/loans";
+import { useWallet } from "@/wallet/walletHooks";
+import { fundLoan as fundLoanViaWallet } from "@/services/transactionService";
 
 export default function LoansPage() {
   const supabase = createClient();
+  const { address: lenderAddress } = useWallet();
+  
   const [loans, setLoans] = useState<LoanRequest[]>([]);
   const [fundedIds, setFundedIds] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
@@ -30,6 +34,7 @@ export default function LoansPage() {
     load();
   }, []);
 
+  // Standard fund (database only)
   const handleFund = async (loanId: string, rate: string) => {
     try {
       await fundLoan(loanId, currentUserId, parseFloat(rate));
@@ -37,6 +42,31 @@ export default function LoansPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to fund loan.");
     }
+  };
+
+  // Fund via wallet (blockchain + database)
+  const handleFundViaWallet = async (loan: LoanRequest, rate: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    if (!lenderAddress) throw new Error("Wallet not ready");
+
+    // Get borrower wallet address from profiles
+    const { data: borrowerProfile } = await supabase
+      .from("profiles")
+      .select("wallet_address")
+      .eq("id", loan.borrower_id)
+      .single();
+
+    if (!borrowerProfile?.wallet_address) {
+      throw new Error("Borrower wallet address not found");
+    }
+
+    // Execute blockchain transaction
+    await fundLoanViaWallet(user.id, loan.id, borrowerProfile.wallet_address);
+    
+    // Update database
+    await fundLoan(loan.id, currentUserId, parseFloat(rate));
+    setFundedIds((prev) => [...prev, loan.id]);
   };
 
   return (
@@ -89,7 +119,9 @@ export default function LoansPage() {
                   reason={loan.purpose}
                   duration={`${loan.duration_days} Days`}
                   score={loan.profiles?.reputation_score ?? 0}
+                  walletAddress={loan.profiles?.wallet_address}
                   onConfirmFund={(rate) => handleFund(loan.id, rate)}
+                  onFundViaWallet={lenderAddress ? (rate) => handleFundViaWallet(loan, rate) : undefined}
                 />
               )
             )}
