@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { useI18n } from "@/i18n/I18nContext";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
 
 export default function AuthPage() {
   const router = useRouter();
   const supabase = createClient();
-  const { t } = useI18n();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -23,17 +21,17 @@ export default function AuthPage() {
     setError("");
 
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError(t("auth.errorEmail"));
+      setError("Please enter a valid email address.");
       return;
     }
     if (password.length < 6) {
-      setError(t("auth.errorPassword"));
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     if (mode === "signup") {
-      if (!name.trim()) { setError(t("auth.errorName")); return; }
-      if (!age || Number(age) < 18) { setError(t("auth.errorAge")); return; }
+      if (!name.trim()) { setError("Please enter your name."); return; }
+      if (!age || Number(age) < 18) { setError("Age must be 18 or older."); return; }
     }
 
     setLoading(true);
@@ -72,7 +70,7 @@ export default function AuthPage() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError) {
-        setError(t("auth.errorInvalidCredentials"));
+        setError("Invalid email or password.");
         setLoading(false);
         return;
       }
@@ -93,26 +91,28 @@ export default function AuthPage() {
     <div className="min-h-screen bg-[#eef2f7] flex flex-col lg:items-center lg:justify-center">
       <div className="w-full max-w-sm mx-auto flex flex-col px-6 pt-10 pb-8 lg:bg-white lg:rounded-3xl lg:shadow-lg lg:my-8">
 
-        {/* Logo */}
+        {/* Logo + Language Switcher */}
         <div className="mb-8 flex items-center justify-between">
           <span className="text-[#1a2fb8] font-bold text-xl tracking-tight">Vault</span>
-          <LanguageSwitcher />
+          <GoogleTranslateSwitcher />
         </div>
 
         {/* Heading */}
         <div className="mb-8">
           <h1 className="text-4xl font-black text-[#111827] leading-tight mb-2">
-            {mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}
+            {mode === "login" ? "Welcome back." : "Create account."}
           </h1>
           <p className="text-[#6b7280] text-base leading-relaxed">
-            {mode === "login" ? t("auth.loginSubtitle") : t("auth.signupSubtitle")}
+            {mode === "login"
+              ? "Log in to access your decentralized assets."
+              : "Sign up to get started on Vault."}
           </p>
         </div>
 
         {/* Email */}
         <div className="mb-4">
           <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-            {t("auth.emailLabel")}
+            Email Address
           </label>
           <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
@@ -123,7 +123,7 @@ export default function AuthPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.emailPlaceholder")}
+              placeholder="Enter your email"
               className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
             />
           </div>
@@ -132,7 +132,7 @@ export default function AuthPage() {
         {/* Password */}
         <div className="mb-4">
           <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-            {t("auth.passwordLabel")}
+            Password
           </label>
           <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
@@ -144,7 +144,7 @@ export default function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder={t("auth.passwordPlaceholder")}
+              placeholder="Enter your password"
               className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
             />
           </div>
@@ -155,7 +155,7 @@ export default function AuthPage() {
           <>
             <div className="mb-4">
               <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-                {t("auth.nameLabel")}
+                Full Name
               </label>
               <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
@@ -166,7 +166,7 @@ export default function AuthPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={t("auth.namePlaceholder")}
+                  placeholder="Your full name"
                   className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
                 />
               </div>
@@ -174,7 +174,7 @@ export default function AuthPage() {
 
             <div className="mb-4">
               <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-                {t("auth.ageLabel")}
+                Age
               </label>
               <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
@@ -185,7 +185,7 @@ export default function AuthPage() {
                   type="number"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
-                  placeholder={t("auth.agePlaceholder")}
+                  placeholder="Your age"
                   min="18"
                   className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
                 />
@@ -200,7 +200,7 @@ export default function AuthPage() {
           disabled={loading}
           className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 mb-4 disabled:opacity-70"
         >
-          {loading ? t("auth.pleaseWait") : mode === "login" ? t("auth.loginButton") : t("auth.signupButton")}
+          {loading ? "Please wait..." : mode === "login" ? "Log In" : "Sign Up"}
           {!loading && (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
               <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
@@ -210,9 +210,9 @@ export default function AuthPage() {
 
         {/* Mode toggle */}
         <p className="text-center text-sm text-[#6b7280] mb-6">
-          {mode === "login" ? t("auth.noAccount") : t("auth.haveAccount")}
+          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
           <button onClick={switchMode} className="text-[#1a2fb8] font-bold">
-            {mode === "login" ? t("auth.signupButton") : t("auth.loginButton")}
+            {mode === "login" ? "Sign Up" : "Log In"}
           </button>
         </p>
 
@@ -232,10 +232,10 @@ export default function AuthPage() {
           </div>
           <div>
             <p className="text-xs font-bold text-[#16a34a] tracking-widest uppercase mb-1">
-              {t("auth.securityTitle")}
+              Institutional Security
             </p>
             <p className="text-sm text-[#374151] leading-relaxed">
-              {t("auth.securityBody")}
+              Your identity is verified on-chain. Secure, private, and non-custodial.
             </p>
           </div>
         </div>
@@ -243,14 +243,14 @@ export default function AuthPage() {
         <div className="flex items-center justify-center gap-2 mb-6">
           <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
           <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">
-            {t("auth.protocolLive")}
+            Decentralized Protocol Live
           </span>
         </div>
 
         <p className="text-center text-xs text-[#9ca3af] leading-relaxed mt-auto">
-          {t("auth.termsText")}{" "}
-          <span className="text-[#1a2fb8] underline cursor-pointer">{t("auth.terms")}</span> {t("auth.termsAnd")}{" "}
-          <span className="text-[#1a2fb8] underline cursor-pointer">{t("auth.privacy")}</span>.
+          By continuing, you agree to our{" "}
+          <span className="text-[#1a2fb8] underline cursor-pointer">Terms of Service</span> and{" "}
+          <span className="text-[#1a2fb8] underline cursor-pointer">Privacy Policy</span>.
         </p>
       </div>
     </div>

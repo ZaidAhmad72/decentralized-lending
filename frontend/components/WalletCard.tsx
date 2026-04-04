@@ -1,16 +1,16 @@
 "use client";
 
 import { useWallet } from "@/wallet/walletHooks";
-import { useI18n } from "@/i18n/I18nContext";
+
 
 export default function WalletCard() {
   const { address, shortAddress, balance, loading, error, isConnected, refreshBalance } = useWallet();
-  const { t } = useI18n();
+
 
   return (
     <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">{t("wallet.smartWallet")}</p>
+        <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">"Smart Wallet"</p>
         <span
           className={`text-xs font-bold px-2.5 py-1 rounded-full ${
             loading
@@ -20,7 +20,7 @@ export default function WalletCard() {
               : "bg-[#fee2e2] text-[#dc2626]"
           }`}
         >
-          {loading ? t("wallet.loading") : isConnected ? t("wallet.connected") : t("wallet.disconnected")}
+          {loading ? "Loading..." : isConnected ? "Connected" : "Disconnected"}
         </span>
       </div>
 
@@ -40,18 +40,18 @@ export default function WalletCard() {
               </svg>
             </div>
             <div>
-              <p className="text-xs text-[#6b7280]">{t("wallet.address")}</p>
+              <p className="text-xs text-[#6b7280]">"Address"</p>
               <p className="text-sm font-bold text-[#111827] font-mono">{shortAddress ?? "—"}</p>
             </div>
           </div>
 
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs text-[#6b7280] mb-0.5">{t("wallet.balance")}</p>
+              <p className="text-xs text-[#6b7280] mb-0.5">"Balance"</p>
               <p className="text-2xl font-black text-[#111827]">{balance} <span className="text-sm font-semibold text-[#6b7280]">MATIC</span></p>
             </div>
             <button onClick={refreshBalance} className="text-xs font-bold text-[#1a2fb8] hover:underline">
-              {t("wallet.refresh")}
+              "Refresh"
             </button>
           </div>
 
