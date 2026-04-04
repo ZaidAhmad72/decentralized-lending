@@ -25,8 +25,14 @@ export default function DashboardPage() {
   const [displayPhone, setDisplayPhone] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setDisplayPhone(data.user.email);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", data.user.id)
+        .single();
+      setDisplayPhone(profile?.name || data.user.email || "");
     });
   }, []);
 
