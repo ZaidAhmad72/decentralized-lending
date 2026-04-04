@@ -38,7 +38,13 @@ export default function AuthPage() {
     setLoading(true);
 
     if (mode === "signup") {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { data, error: signUpError } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      });
 
       if (signUpError) {
         setError(signUpError.message);
@@ -55,7 +61,6 @@ export default function AuthPage() {
           .single();
 
         if (!existing) {
-          // Generate deterministic wallet address from user ID
           const walletAddress = `0x${user.id.replace(/-/g, '').slice(0, 40)}`;
           
           const { error: profileError } = await supabase.from("profiles").insert([{
@@ -69,6 +74,7 @@ export default function AuthPage() {
           }]);
           if (profileError) { setError(profileError.message); setLoading(false); return; }
         }
+        
         router.push("/dashboard");
       }
 
@@ -82,6 +88,51 @@ export default function AuthPage() {
       }
 
       router.push("/dashboard");
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+
+    setVerifying(true);
+    setError("");
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: mode === "signup" ? "signup" : "email",
+    });
+
+    if (verifyError) {
+      setError("Invalid OTP. Please try again.");
+      setVerifying(false);
+      return;
+    }
+
+    // OTP verified, redirect to dashboard
+    router.push("/dashboard");
+    setVerifying(false);
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setLoading(true);
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      }
+    });
+
+    if (otpError) {
+      setError("Failed to resend OTP. Please try again.");
+    } else {
+      setError("OTP resent! Check your email.");
     }
 
     setLoading(false);

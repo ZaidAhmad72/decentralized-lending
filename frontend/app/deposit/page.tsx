@@ -45,6 +45,20 @@ export default function DepositPage() {
   const [pricesLoading, setPricesLoading] = useState(false);
   const [lastPriceUpdate, setLastPriceUpdate] = useState(0);
 
+  // Cleanup timer on unmount
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (success) {
+      timer = setTimeout(() => {
+        setSuccess(false);
+        setTxStatus("idle");
+      }, 5000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [success]);
+
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -84,7 +98,7 @@ export default function DepositPage() {
 
   // Get current crypto price
   const currentPrice = useMemo(() => {
-    return getCryptoPrice(cryptoPrices, selectedCrypto);
+    return getCryptoPrice(selectedCrypto, cryptoPrices);
   }, [cryptoPrices, selectedCrypto]);
 
   // Calculate INR value
@@ -111,7 +125,7 @@ export default function DepositPage() {
     }
 
     // Convert crypto to ETH for backend
-    const depositAmountETH = cryptoToETH(depositAmountCrypto, selectedCrypto, cryptoPrices);
+    const depositAmountETH = cryptoToETH(depositAmountCrypto, selectedCrypto, cryptoPrices, ethPrice);
     const walletBalanceINR = ethToINR(walletBalance, ethPrice);
 
     if (depositINR > walletBalanceINR) {
@@ -143,11 +157,6 @@ export default function DepositPage() {
       setUserDeposited(deposited);
       const wallet = await getWalletInfo(user.id);
       setWalletBalance(wallet.balance);
-
-      setTimeout(() => {
-        setSuccess(false);
-        setTxStatus("idle");
-      }, 5000);
     } catch (err: unknown) {
       setTxStatus("idle");
       setError(err instanceof Error ? err.message : "Deposit failed.");
@@ -307,7 +316,7 @@ export default function DepositPage() {
                   { label: "Available Liquidity", value: formatINR(availableLiquidityINR) },
                   { label: "Your Total Deposited", value: formatINR(userDepositedINR) },
                   { label: "Daily Rate", value: "0.019%", highlight: true },
-                  { label: "Expected Yearly Earning", value: formatINR(userDepositedINR * 0.07), highlight: true },
+                  { label: "Expected Yearly Earning", value: depositINR > 0 ? formatINR(depositINR * 0.07) : formatINR(userDepositedINR * 0.07), highlight: true },
                   { label: "Exchange Rate", value: `1 ETH = ${formatINR(ethPrice)}` },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">

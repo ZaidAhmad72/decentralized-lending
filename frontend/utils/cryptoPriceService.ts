@@ -62,6 +62,7 @@ async function fetchPricesFromAPI(): Promise<PriceFetchResult> {
       { 
         method: 'GET',
         headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
       }
     );
     
@@ -104,7 +105,25 @@ async function fetchPricesFromAPI(): Promise<PriceFetchResult> {
       };
     }
     
-    throw error;
+    // Return fallback prices if no cache
+    const fallbackPrices: Record<CryptoSymbol, number> = {
+      'USDC': 83,
+      'USDT': 83,
+      'BTC': 7500000,
+      'ETH': 192000,
+      'BNB': 45000,
+      'SOL': 12000,
+      'XRP': 150,
+      'DOGE': 20,
+      'PEPE': 0.0015,
+      'BONK': 0.002,
+    };
+    
+    return {
+      prices: fallbackPrices,
+      cached: false,
+      error: 'Using fallback prices (API unavailable)',
+    };
   }
 }
 
