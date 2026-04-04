@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 
 const TAB_KEYS = [
@@ -54,6 +55,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
+          <GoogleTranslateSwitcher />
           <LanguageSwitcher />
           <button
             onClick={handleLogout}
@@ -65,7 +67,12 @@ export default function Navbar() {
       </nav>
 
       {/* ── Mobile bottom navbar ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] z-50">
+        {/* Mobile language bar */}
+        <div className="flex justify-end px-4 pt-1.5 pb-0">
+          <GoogleTranslateSwitcher />
+        </div>
+        <div className="flex">
         {TAB_KEYS.map((tab) => (
           <button
             key={tab.labelKey}
@@ -88,6 +95,7 @@ export default function Navbar() {
           </svg>
           {t("nav.logout")}
         </button>
+        </div>
       </div>
     </>
   );
