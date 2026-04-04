@@ -8,39 +8,36 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const otpRefs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
 
-  const formatPhone = (raw: string) => {
-    const digits = raw.replace(/\D/g, "");
-    return digits.startsWith("1") ? `+${digits}` : `+1${digits}`;
-  };
-
   const handleSendOtp = async () => {
     setError("");
-    if (!phone.trim()) {
-      setError("Please enter your phone number.");
+    setSuccessMsg("");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
     setLoading(true);
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      phone: formatPhone(phone),
-    });
+    const { error: otpError } = await supabase.auth.signInWithOtp({ email });
     setLoading(false);
     if (otpError) {
       setError(otpError.message);
     } else {
+      setSuccessMsg(`OTP sent to ${email}`);
       setOtpSent(true);
     }
   };
 
   const handleResend = async () => {
     setError("");
+    setSuccessMsg("");
     setOtp(["", "", "", "", "", ""]);
     await handleSendOtp();
   };
@@ -68,9 +65,9 @@ export default function LoginPage() {
     }
     setLoading(true);
     const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      phone: formatPhone(phone),
+      email,
       token,
-      type: "sms",
+      type: "email",
     });
     if (verifyError) {
       setLoading(false);
@@ -81,7 +78,7 @@ export default function LoginPage() {
     // Upsert profile on first login
     if (data.user) {
       await supabase.from("profiles").upsert(
-        { id: data.user.id, phone: data.user.phone },
+        { id: data.user.id, email: data.user.email },
         { onConflict: "id", ignoreDuplicates: true }
       );
     }
@@ -103,23 +100,26 @@ export default function LoginPage() {
         <div className="mb-10">
           <h1 className="text-4xl font-black text-[#111827] leading-tight mb-3">Welcome back.</h1>
           <p className="text-[#6b7280] text-base leading-relaxed">
-            Access your decentralized assets securely with mobile verification.
+            Access your decentralized assets securely with email verification.
           </p>
         </div>
 
-        {/* Phone Input */}
+        {/* Email Input */}
         <div className="mb-4">
           <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-            Phone Number
+            Email Address
           </label>
           <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
-            <span className="text-[#374151] font-semibold text-base">+1</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            </svg>
             <div className="w-px h-5 bg-[#d1d5db]" />
             <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="000 000 0000"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !otpSent && handleSendOtp()}
+              placeholder="Enter your email"
               disabled={otpSent}
               className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent disabled:opacity-60"
             />
@@ -188,6 +188,13 @@ export default function LoginPage() {
               {loading ? "Verifying..." : "Verify & Login"}
             </button>
           </>
+        )}
+
+        {/* Success message */}
+        {successMsg && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-2xl px-4 py-3 mb-4">
+            {successMsg}
+          </div>
         )}
 
         {/* Error message */}

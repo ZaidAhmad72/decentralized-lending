@@ -26,7 +26,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.phone) setDisplayPhone(data.user.phone);
+      if (data.user?.email) setDisplayPhone(data.user.email);
     });
   }, []);
 
