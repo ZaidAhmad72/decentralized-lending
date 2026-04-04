@@ -1,0 +1,34 @@
+# Hardhat
+node_modules
+cache
+artifacts
+typechain-types
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Coverage
+coverage
+coverage.json
+
+# Hardhat
+.openzeppelin
+
+# Build
+dist
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

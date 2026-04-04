@@ -10,6 +10,7 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { simulateTransaction } from "./walletService";
+import { recalculateCreditScore } from "./reputationService";
 
 const supabase = createClient();
 
@@ -146,6 +147,9 @@ export async function depositToPool(userId: string, amount: number): Promise<str
     amount,
     tx_hash: txHash,
   }]);
+
+  // 10. Recalculate credit score
+  await recalculateCreditScore(userId);
 
   return txHash;
 }

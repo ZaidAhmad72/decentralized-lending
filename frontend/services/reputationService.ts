@@ -10,6 +10,13 @@
  */
 
 import { createClient } from "@/utils/supabase/client";
+import { 
+  calculateCreditScore, 
+  gatherUserCreditData,
+  getCachedScore,
+  setCachedScore,
+  type ScoreBreakdown 
+} from "./creditScoreService";
 
 const supabase = createClient();
 
@@ -129,4 +136,51 @@ export async function recordDefault(userId: string): Promise<void> {
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+}
+
+// ============================================================================
+// ADVANCED CREDIT SCORING INTEGRATION
+// ============================================================================
+
+/**
+ * Recalculate and update credit score using advanced multi-factor model
+ * Call this on trigger events (loan, repay, deposit, default)
+ */
+export async function recalculateCreditScore(userId: string): Promise<number> {
+  // Check cache first
+  const cached = getCachedScore(userId);
+  if (cached !== null) {
+    return cached;
+  }
+  
+  // Gather data
+  const userData = await gatherUserCreditData(userId);
+  
+  // Calculate new score
+  const result = calculateCreditScore(userData);
+  
+  // Update in database
+  const { error } = await supabase
+    .from("reputation")
+    .update({ 
+      credit_score: result.score,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  
+  if (error) throw new Error(error.message);
+  
+  // Cache the result
+  setCachedScore(userId, result.score);
+  
+  return result.score;
+}
+
+/**
+ * Get score breakdown for display in UI
+ */
+export async function getScoreBreakdown(userId: string): Promise<ScoreBreakdown> {
+  const userData = await gatherUserCreditData(userId);
+  const result = calculateCreditScore(userData);
+  return result.breakdown;
 }

@@ -9,15 +9,18 @@ import Chatbot from "@/components/Chatbot";
 import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, type Loan } from "@/services/loanService";
 import { getPoolStats, getUserTotalDeposited } from "@/services/poolService";
-import { getReputation, getCreditTier, getMaxLTV } from "@/services/reputationService";
+import { getReputation, getCreditTier, getMaxLTV, getScoreBreakdown } from "@/services/reputationService";
 import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
+import CreditScoreDisplay from "@/components/CreditScoreDisplay";
+import { calculateHealthFactor, formatHealthFactor, getHealthFactorColor } from "@/services/creditScoreService";
+import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
 
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
   const { balance: walletBalance, address: walletAddress } = useWallet();
 
-  const [profile, setProfile] = useState({ name: "", reputation_score: 0 });
+  const [profile, setProfile] = useState({ name: "" });
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
   const [poolStats, setPoolStats] = useState({ total_liquidity: 0, total_borrowed: 0 });
   const [userDeposited, setUserDeposited] = useState(0);
@@ -25,6 +28,10 @@ export default function DashboardPage() {
   const [creditScore, setCreditScore] = useState(500);
   const [creditTier, setCreditTier] = useState("Good");
   const [maxLTV, setMaxLTV] = useState(0.75);
+  const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownType | undefined>(undefined);
+  const [healthFactor, setHealthFactor] = useState<number>(Infinity);
+  const [scoreDecay, setScoreDecay] = useState<number>(0);
+  const [gasSaved, setGasSaved] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,18 +41,19 @@ export default function DashboardPage() {
 
       const { data: prof } = await supabase
         .from("profiles")
-        .select("name, reputation_score")
+        .select("name")
         .eq("id", user.id)
         .single();
 
       if (prof) setProfile(prof);
 
-      const [loan, stats, deposited, price, rep] = await Promise.all([
+      const [loan, stats, deposited, price, rep, breakdown] = await Promise.all([
         getUserActiveLoan(user.id),
         getPoolStats(),
         getUserTotalDeposited(user.id),
         getEthPriceINR(),
         getReputation(user.id),
+        getScoreBreakdown(user.id),
       ]);
 
       setActiveLoan(loan);
@@ -55,6 +63,33 @@ export default function DashboardPage() {
       setCreditScore(rep.credit_score);
       setCreditTier(getCreditTier(rep.credit_score));
       setMaxLTV(getMaxLTV(rep.credit_score));
+      setScoreBreakdown(breakdown);
+      
+      // Calculate health factor
+      const collateralValue = prof?.wallet_balance || 0;
+      const borrowedValue = loan?.amount || 0;
+      const hf = calculateHealthFactor(collateralValue, borrowedValue);
+      setHealthFactor(hf);
+      
+      // Get score decay from breakdown (if available)
+      // For now, calculate based on last activity
+      const { count: txCount } = await supabase
+        .from("transactions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+      
+      const daysInactive = txCount === 0 ? 7 : 0;
+      const decay = daysInactive > 0 ? Math.round(rep.credit_score * 0.01 * daysInactive) : 0;
+      setScoreDecay(decay);
+      
+      // Calculate gas saved (transactions * 0.465 rupees)
+      const { count: totalTx } = await supabase
+        .from("transactions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      
+      setGasSaved((totalTx || 0) * 0.465);
 
       setLoading(false);
     };
@@ -139,31 +174,13 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Credit Score */}
-              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700">
-                <div className="flex flex-col items-center mb-3">
-                  <div className="relative w-36 h-20 overflow-hidden mb-2">
-                    <svg viewBox="0 0 144 80" className="w-full h-full">
-                      <path d="M 12 72 A 60 60 0 0 1 132 72" fill="none" stroke="#e5e9f0" strokeWidth="10" strokeLinecap="round" />
-                      <path d="M 12 72 A 60 60 0 0 1 132 72" fill="none" stroke="#15803d" strokeWidth="10" strokeLinecap="round"
-                        strokeDasharray="188.5"
-                        strokeDashoffset={188.5 - (188.5 * Math.min(creditScore, 1000)) / 1000}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                      <span className="text-3xl font-black text-[#111827] dark:text-white">{creditScore}</span>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    creditTier === "Excellent" ? "bg-[#4ade80] text-[#14532d]" :
-                    creditTier === "Good" ? "bg-[#bfdbfe] text-[#1e40af]" :
-                    creditTier === "Fair" ? "bg-[#fef3c7] text-[#d97706]" :
-                    "bg-red-100 text-red-600"
-                  }`}>
-                    {creditTier.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-center text-xs text-[#6b7280] dark:text-gray-400">Credit Score · LTV {(maxLTV * 100).toFixed(0)}%</p>
+              {/* Credit Score - Enhanced */}
+              <div className="lg:col-span-3">
+                <CreditScoreDisplay 
+                  score={creditScore} 
+                  tier={creditTier} 
+                  breakdown={scoreBreakdown}
+                />
               </div>
             </div>
 
@@ -266,13 +283,28 @@ export default function DashboardPage() {
                   { label: "Credit Score", value: `${creditScore} / 1000` },
                   { label: "Credit Tier", value: creditTier },
                   { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },
+                  { 
+                    label: "Health Factor", 
+                    value: formatHealthFactor(healthFactor),
+                    color: getHealthFactorColor(healthFactor)
+                  },
+                  { 
+                    label: "Dynamic Score Decay", 
+                    value: scoreDecay > 0 ? `−${scoreDecay} pts` : "Active",
+                    color: scoreDecay > 0 ? "text-red-600" : "text-green-600"
+                  },
                   { label: "Active Loan", value: activeLoan ? formatINR(activeLoanINR) : "None" },
                   { label: "Loan Status", value: activeLoan ? activeLoan.status : "—" },
                   { label: "Days Remaining", value: activeLoan ? `${daysLeft}d` : "—" },
+                  { 
+                    label: "Gas Saved", 
+                    value: `₹${gasSaved.toFixed(2)}`,
+                    color: "text-green-600"
+                  },
                 ].map((s) => (
                   <div key={s.label} className="flex justify-between items-center">
                     <span className="text-sm text-[#6b7280] dark:text-gray-400">{s.label}</span>
-                    <span className="text-sm font-bold text-[#111827] dark:text-white capitalize">{s.value}</span>
+                    <span className={`text-sm font-bold capitalize ${s.color || "text-[#111827] dark:text-white"}`}>{s.value}</span>
                   </div>
                 ))}
               </div>
@@ -281,7 +313,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <Chatbot context={{
-        reputationScore: profile.reputation_score,
+        reputationScore: creditScore,
         activeLoan: activeLoan ? { amount: activeLoan.amount, status: activeLoan.status, daysLeft } : null,
         userDeposited,
         poolLiquidity: poolStats.total_liquidity,
