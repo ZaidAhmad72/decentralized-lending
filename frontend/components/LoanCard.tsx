@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 interface LoanCardProps {
+  loanId: string;
   borrower: string;
   amount: number;
   reason: string;
@@ -11,7 +12,7 @@ interface LoanCardProps {
   onConfirmFund?: (interestRate: string) => void;
 }
 
-export default function LoanCard({ borrower, amount, reason, duration, score, onConfirmFund }: LoanCardProps) {
+export default function LoanCard({ loanId, borrower, amount, reason, duration, score, onConfirmFund }: LoanCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [rate, setRate] = useState("");
   const [error, setError] = useState("");
