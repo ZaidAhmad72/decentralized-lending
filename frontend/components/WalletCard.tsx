@@ -14,6 +14,8 @@ export default function WalletCard() {
   const [priceLoading, setPriceLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
 
   useEffect(() => {
     loadWallet();
@@ -52,28 +54,36 @@ export default function WalletCard() {
     setPriceLoading(false);
   };
 
-  const handleAddETH = async () => {
+  const handleAddETH = async (amount: number) => {
     setAdding(true);
+    setShowCustomInput(false);
+    setCustomAmount("");
     setToast("Transaction Pending...");
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Simulate transaction
       await simulateTransaction("faucet");
-
-      // Add 1 ETH
-      const newBalance = await addTestETH(user.id, 1.0);
+      const newBalance = await addTestETH(user.id, amount);
       setBalance(newBalance);
-      setToast("✅ 1 ETH added (Demo)");
-      
+      setToast(`✅ ${amount} ETH added (Demo)`);
       setTimeout(() => setToast(""), 3000);
-    } catch (err) {
+    } catch {
       setToast("❌ Failed to add ETH");
       setTimeout(() => setToast(""), 3000);
     }
     setAdding(false);
+  };
+
+  const handleCustomSubmit = () => {
+    const val = parseFloat(customAmount);
+    if (!val || val <= 0 || val > 100) {
+      setToast("❌ Enter a value between 0.001 and 100");
+      setTimeout(() => setToast(""), 2000);
+      return;
+    }
+    handleAddETH(val);
   };
 
   const balanceINR = ethToINR(balance, ethPrice);
@@ -154,29 +164,78 @@ export default function WalletCard() {
           </p>
         </div>
 
-        {/* Add ETH Button */}
-        <button
-          onClick={handleAddETH}
-          disabled={adding}
-          className="w-full bg-white text-[#1a2fb8] rounded-xl py-3 font-bold text-sm hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-        >
-          {adding ? (
-            <>
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
-                <path d="M12 2a10 10 0 0 1 10 10" />
-              </svg>
-              Processing...
-            </>
-          ) : (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-              </svg>
-              Add Test ETH (Faucet)
-            </>
-          )}
-        </button>
+        {/* Faucet */}
+        {showCustomInput ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 bg-white bg-opacity-20 rounded-xl px-3 py-2">
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
+                placeholder="0.5"
+                step="0.1"
+                min="0.001"
+                max="100"
+                autoFocus
+                className="flex-1 bg-transparent outline-none text-white font-bold text-base placeholder-white placeholder-opacity-40 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                style={{ colorScheme: "dark" }}
+              />
+              <span className="text-white text-sm font-bold opacity-70">ETH</span>
+            </div>
+            {/* Preset buttons */}
+            <div className="flex gap-2">
+              {[0.5, 1, 2, 5].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => handleAddETH(preset)}
+                  disabled={adding}
+                  className="flex-1 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-xs font-bold py-2 rounded-lg transition-all disabled:opacity-50"
+                >
+                  +{preset}
+                </button>
+              ))}
+            </div>
+            {/* Confirm / Cancel */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleCustomSubmit}
+                disabled={adding || !customAmount}
+                className="flex-1 bg-white text-[#1a2fb8] rounded-xl py-2.5 font-bold text-sm hover:bg-opacity-90 transition-all disabled:opacity-50"
+              >
+                {adding ? "Adding..." : "Add ETH"}
+              </button>
+              <button
+                onClick={() => { setShowCustomInput(false); setCustomAmount(""); }}
+                className="w-10 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-xl font-bold text-base transition-all"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCustomInput(true)}
+            disabled={adding}
+            className="w-full bg-white text-[#1a2fb8] rounded-xl py-3 font-bold text-sm hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {adding ? (
+              <>
+                <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a2fb8" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                Processing...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#1a2fb8">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                Add Test ETH (Faucet)
+              </>
+            )}
+          </button>
+        )}
 
         {/* Toast */}
         {toast && (

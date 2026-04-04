@@ -52,16 +52,30 @@ export async function ensureReputation(userId: string): Promise<void> {
 
 // Get user reputation — maps to getCreditScore() in Solidity
 export async function getReputation(userId: string): Promise<ReputationData> {
-  await ensureReputation(userId);
+  // Graceful fallback if reputation table doesn't exist yet
+  try {
+    await ensureReputation(userId);
 
-  const { data, error } = await supabase
-    .from("reputation")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
+    const { data, error } = await supabase
+      .from("reputation")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
 
-  if (error) throw new Error(error.message);
-  return data;
+    if (error) throw new Error(error.message);
+    return data;
+  } catch {
+    // Table not yet created — return safe defaults so app doesn't crash
+    // Run frontend/sql/defi-schema.sql in Supabase to fix this
+    console.warn("reputation table not found — using defaults. Run defi-schema.sql in Supabase.");
+    return {
+      credit_score: 500,
+      total_loans: 0,
+      successful_repayments: 0,
+      defaults: 0,
+      total_borrowed_amount: 0,
+    };
+  }
 }
 
 // Record new loan — maps to recordLoan() in Solidity
