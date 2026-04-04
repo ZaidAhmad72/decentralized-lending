@@ -6,28 +6,30 @@
 const STORAGE_KEY = "vault_gt_lang";
 const COOKIE_NAME = "googtrans";
 
-/** Write the googtrans cookie on both root path and domain (GT requires both). */
+/** Write the googtrans cookie on both root path and domain. */
 function writeGoogTransCookie(value: string) {
-  document.cookie = `${COOKIE_NAME}=${value}; path=/`;
-  document.cookie = `${COOKIE_NAME}=${value}; path=/; domain=${location.hostname}`;
+  const host = window.location.hostname;
+  // SameSite=Lax ensures the cookie survives client-side navigation
+  document.cookie = `${COOKIE_NAME}=${value}; path=/; SameSite=Lax`;
+  document.cookie = `${COOKIE_NAME}=${value}; path=/; domain=${host}; SameSite=Lax`;
 }
 
-/** Clear the googtrans cookie so Google Translate resets to source language. */
+/** Expire the googtrans cookie on both path and domain. */
 function clearGoogTransCookie() {
+  const host = window.location.hostname;
   const expired = "expires=Thu, 01 Jan 1970 00:00:00 UTC";
-  document.cookie = `${COOKIE_NAME}=; path=/; ${expired}`;
-  document.cookie = `${COOKIE_NAME}=; path=/; domain=${location.hostname}; ${expired}`;
+  document.cookie = `${COOKIE_NAME}=; path=/; ${expired}; SameSite=Lax`;
+  document.cookie = `${COOKIE_NAME}=; path=/; domain=${host}; ${expired}; SameSite=Lax`;
 }
 
 /**
- * Persist and apply a language selection.
- * Tries the no-reload DOM method first; falls back to cookie + reload.
+ * Select a language.
+ * 1. Persists to localStorage + cookie.
+ * 2. Drives the hidden SDK <select> if available (no reload needed).
+ * 3. Falls back to reload so the cookie takes effect.
  */
 export function setLanguage(lang: string): void {
   if (typeof window === "undefined") return;
-
-  // Persist choice
-  try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* ignore */ }
 
   if (lang === "en") {
     clearGoogTransCookie();
@@ -36,9 +38,10 @@ export function setLanguage(lang: string): void {
     return;
   }
 
+  try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* ignore */ }
   writeGoogTransCookie(`/en/${lang}`);
 
-  // Try driving the hidden SDK <select> — avoids a full reload
+  // Drive the hidden SDK <select> — avoids a full reload when GT is ready
   const select = document.querySelector<HTMLSelectElement>(
     ".goog-te-combo, #google_translate_element select"
   );
@@ -46,16 +49,14 @@ export function setLanguage(lang: string): void {
     select.value = lang;
     select.dispatchEvent(new Event("change"));
   } else {
-    // SDK not ready yet — reload so the cookie takes effect on next load
     window.location.reload();
   }
 }
 
 /**
- * Re-apply the saved language on page load.
- * Call this once from a client-side useEffect in the root layout.
- * If the cookie is already set (from a previous reload), GT picks it up
- * automatically — this just ensures the cookie is always fresh.
+ * Re-apply the saved language on every page load.
+ * Called from GoogleTranslate.tsx before the SDK script is injected,
+ * so the cookie is always fresh when GT reads it.
  */
 export function applySavedLanguage(): void {
   if (typeof window === "undefined") return;
@@ -68,7 +69,7 @@ export function applySavedLanguage(): void {
     return;
   }
 
-  // Refresh the cookie so it doesn't expire mid-session
+  // Refresh cookie with SameSite so it survives navigation
   writeGoogTransCookie(`/en/${lang}`);
 }
 

@@ -11,19 +11,26 @@ body {
 
 /* ── Google Translate banner suppression ─────────────────────────────────── */
 
-/* Hide the top banner iframe */
+/* Hide the top banner iframe — CSS fires before JS, catches early flash */
 .goog-te-banner-frame.skiptranslate,
-.goog-te-banner-frame {
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
 }
 
-/* Neutralise the body offset Google injects via inline style */
-body {
+/* Lock body position — GT injects inline top:40px to push content down.
+   The .gt-banner-removed class is added by JS for extra specificity. */
+body,
+body.gt-banner-removed {
   top: 0px !important;
   position: static !important;
+  margin-top: 0 !important;
 }
 
-/* Hide tooltip and highlight artifacts */
+/* Hide tooltip and text-highlight artifacts */
 .goog-tooltip,
 .goog-tooltip:hover,
 .goog-text-highlight {
@@ -32,7 +39,7 @@ body {
   box-shadow: none !important;
 }
 
-/* Hide the attribution logo and gadget text */
+/* Hide attribution logo and gadget text */
 .goog-logo-link,
 .goog-te-gadget span,
 .goog-te-gadget a {
@@ -41,9 +48,17 @@ body {
 
 .goog-te-gadget {
   font-size: 0px !important;
+  height: 0 !important;
 }
 
-/* Hide the hidden widget anchor we inject */
+/* Hide the SDK anchor div we inject */
 #google_translate_element {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Prevent the GT "skiptranslate" class from adding visible UI */
+.skiptranslate {
   display: none !important;
 }
