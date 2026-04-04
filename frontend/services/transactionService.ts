@@ -16,7 +16,7 @@ export interface FundLoanResult {
  */
 export async function fundLoan(
   lenderUserId: string,
-  loanId: number,
+  loanId: string,
   borrowerWalletAddress: string
 ): Promise<FundLoanResult> {
   const supabase = createClient();
@@ -33,14 +33,13 @@ export async function fundLoan(
     throw new Error("Transaction failed");
   }
 
-  // Record tx_hash and update loan status in Supabase
+  // Record tx_hash on the loan_requests table
   const { error } = await supabase
-    .from("loans")
-    .update({ tx_hash: result.txHash, status: "ACTIVE" })
+    .from("loan_requests")
+    .update({ tx_hash: result.txHash })
     .eq("id", loanId);
 
   if (error) {
-    // Transaction went through on-chain; log DB error but don't throw
     console.error("Failed to update loan in DB:", error.message);
   }
 

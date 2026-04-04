@@ -50,7 +50,7 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-[#e5e9f0] overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-[#e5e9f0] dark:border-gray-700 overflow-hidden transition-colors">
       {/* Card Header */}
       <div className="p-4">
         <div className="flex items-start justify-between mb-3">
@@ -59,21 +59,21 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
               {borrower.charAt(0)}
             </div>
             <div>
-              <p className="font-semibold text-[#111827] text-sm">{borrower}</p>
-              <p className="text-xs text-[#6b7280]">{duration} · Score {score}</p>
+              <p className="font-semibold text-[#111827] dark:text-white text-sm">{borrower}</p>
+              <p className="text-xs text-[#6b7280] dark:text-gray-400">{duration} · Score {score}</p>
               {walletAddress && (
-                <p className="text-[10px] text-[#9ca3af] font-mono mt-0.5">
+                <p className="text-[10px] text-[#9ca3af] dark:text-gray-500 font-mono mt-0.5">
                   {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                 </p>
               )}
             </div>
           </div>
           <div className="text-right">
-            <p className="font-bold text-[#111827] text-base">${amount.toLocaleString()}</p>
-            <p className="text-xs text-[#6b7280]">USDC</p>
+            <p className="font-bold text-[#111827] dark:text-white text-base">${amount.toLocaleString()}</p>
+            <p className="text-xs text-[#6b7280] dark:text-gray-400">USDC</p>
           </div>
         </div>
-        <p className="text-sm text-[#6b7280] mb-4 line-clamp-2">{reason}</p>
+        <p className="text-sm text-[#6b7280] dark:text-gray-400 mb-4 line-clamp-2">{reason}</p>
 
         <button
           onClick={() => { setExpanded(!expanded); setError(""); setTxStatus("idle"); }}
@@ -85,9 +85,9 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
 
       {/* Expanded interest rate input */}
       {expanded && (
-        <div className="border-t border-[#f3f4f6] bg-[#f9fafb] px-4 py-4 flex flex-col gap-3">
-          <p className="text-xs font-semibold text-[#374151] uppercase tracking-widest">Set Your Interest Rate</p>
-          <div className="flex items-center bg-white rounded-xl border border-[#e5e9f0] px-4 py-3 gap-2">
+        <div className="border-t border-[#f3f4f6] dark:border-gray-700 bg-[#f9fafb] dark:bg-gray-900 px-4 py-4 flex flex-col gap-3">
+          <p className="text-xs font-semibold text-[#374151] dark:text-gray-300 uppercase tracking-widest">Set Your Interest Rate</p>
+          <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-[#e5e9f0] dark:border-gray-700 px-4 py-3 gap-2">
             <input
               type="number"
               min="0.01"
@@ -96,13 +96,12 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
               value={rate}
               onChange={(e) => { setRate(e.target.value); setError(""); }}
               placeholder="e.g. 5.5"
-              className="flex-1 outline-none text-base font-semibold text-[#111827] placeholder-[#9ca3af] bg-transparent"
+              className="flex-1 outline-none text-base font-semibold text-[#111827] dark:text-white placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
             />
-            <span className="text-[#6b7280] font-bold text-sm">%</span>
+            <span className="text-[#6b7280] dark:text-gray-400 font-bold text-sm">%</span>
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
 
-          {/* Standard fund button */}
           <button
             onClick={handleConfirm}
             className="w-full bg-[#4ade80] text-[#14532d] rounded-xl py-3 font-bold text-sm hover:bg-[#22c55e] transition-all active:scale-95"
@@ -110,7 +109,6 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
             Confirm Fund at {rate ? `${rate}%` : "—"}
           </button>
 
-          {/* Fund via Wallet button — only shown when wallet integration is available */}
           {onFundViaWallet && txStatus !== "success" && (
             <button
               onClick={handleFundViaWallet}
@@ -137,13 +135,13 @@ export default function LoanCard({ loanId, borrower, amount, reason, duration, s
           )}
 
           {txStatus === "success" && (
-            <div className="flex items-center gap-2 bg-[#f0fdf4] rounded-xl px-4 py-3 border border-[#bbf7d0]">
+            <div className="flex items-center gap-2 bg-[#f0fdf4] dark:bg-green-950 rounded-xl px-4 py-3 border border-[#bbf7d0] dark:border-green-800">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#15803d">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
               <div>
-                <p className="text-xs font-bold text-[#15803d]">Transaction successful</p>
-                {txHash && <p className="text-[10px] text-[#6b7280] font-mono">{txHash.slice(0, 20)}...</p>}
+                <p className="text-xs font-bold text-[#15803d] dark:text-green-400">Transaction successful</p>
+                {txHash && <p className="text-[10px] text-[#6b7280] dark:text-gray-400 font-mono">{txHash.slice(0, 20)}...</p>}
               </div>
             </div>
           )}

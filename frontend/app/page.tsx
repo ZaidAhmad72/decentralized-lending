@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -92,20 +94,24 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] flex flex-col lg:items-center lg:justify-center">
-      <div className="w-full max-w-sm mx-auto flex flex-col px-6 pt-10 pb-8 lg:bg-white lg:rounded-3xl lg:shadow-lg lg:my-8">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 flex flex-col lg:items-center lg:justify-center transition-colors">
+      <div className="w-full max-w-sm mx-auto flex flex-col px-6 pt-10 pb-8 lg:bg-white lg:dark:bg-gray-900 lg:rounded-3xl lg:shadow-lg lg:my-8 transition-colors">
 
-        {/* Logo */}
-        <div className="mb-8">
-          <span className="text-[#1a2fb8] font-bold text-xl tracking-tight">Vault</span>
+        {/* Logo + Language Switcher + Theme */}
+        <div className="mb-8 flex items-center justify-between gap-2">
+          <span className="text-[#1a2fb8] dark:text-blue-400 font-bold text-xl tracking-tight">Vault</span>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <GoogleTranslateSwitcher />
+          </div>
         </div>
 
         {/* Heading */}
         <div className="mb-8">
-          <h1 className="text-4xl font-black text-[#111827] leading-tight mb-2">
+          <h1 className="text-4xl font-black text-[#111827] dark:text-white leading-tight mb-2">
             {mode === "login" ? "Welcome back." : "Create account."}
           </h1>
-          <p className="text-[#6b7280] text-base leading-relaxed">
+          <p className="text-[#6b7280] dark:text-gray-400 text-base leading-relaxed">
             {mode === "login"
               ? "Log in to access your decentralized assets."
               : "Sign up to get started on Vault."}
@@ -114,41 +120,41 @@ export default function AuthPage() {
 
         {/* Email */}
         <div className="mb-4">
-          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
             Email Address
           </label>
-          <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+          <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
               <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
             </svg>
-            <div className="w-px h-5 bg-[#d1d5db]" />
+            <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
-              className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
             />
           </div>
         </div>
 
         {/* Password */}
         <div className="mb-4">
-          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
             Password
           </label>
-          <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+          <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
               <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
             </svg>
-            <div className="w-px h-5 bg-[#d1d5db]" />
+            <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               placeholder="Enter your password"
-              className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
             />
           </div>
         </div>
@@ -157,40 +163,40 @@ export default function AuthPage() {
         {mode === "signup" && (
           <>
             <div className="mb-4">
-              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
                 Full Name
               </label>
-              <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+              <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
                   <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
                 </svg>
-                <div className="w-px h-5 bg-[#d1d5db]" />
+                <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your full name"
-                  className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+                  className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
                 />
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
                 Age
               </label>
-              <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+              <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
                   <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
                 </svg>
-                <div className="w-px h-5 bg-[#d1d5db]" />
+                <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
                 <input
                   type="number"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
                   placeholder="Your age"
                   min="18"
-                  className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+                  className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
                 />
               </div>
             </div>
@@ -212,22 +218,22 @@ export default function AuthPage() {
         </button>
 
         {/* Mode toggle */}
-        <p className="text-center text-sm text-[#6b7280] mb-6">
+        <p className="text-center text-sm text-[#6b7280] dark:text-gray-400 mb-6">
           {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-          <button onClick={switchMode} className="text-[#1a2fb8] font-bold">
+          <button onClick={switchMode} className="text-[#1a2fb8] dark:text-blue-400 font-bold">
             {mode === "login" ? "Sign Up" : "Log In"}
           </button>
         </p>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl px-4 py-3 mb-4">
+          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm rounded-2xl px-4 py-3 mb-4">
             {error}
           </div>
         )}
 
         {/* Security Badge */}
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-4 mb-6 border border-[#e5e9f0] shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex items-start gap-4 mb-6 border border-[#e5e9f0] dark:border-gray-700 shadow-sm">
           <div className="w-10 h-10 bg-[#4ade80] rounded-xl flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#14532d">
               <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
@@ -237,7 +243,7 @@ export default function AuthPage() {
             <p className="text-xs font-bold text-[#16a34a] tracking-widest uppercase mb-1">
               Institutional Security
             </p>
-            <p className="text-sm text-[#374151] leading-relaxed">
+            <p className="text-sm text-[#374151] dark:text-gray-300 leading-relaxed">
               Your identity is verified on-chain. Secure, private, and non-custodial.
             </p>
           </div>
@@ -245,15 +251,15 @@ export default function AuthPage() {
 
         <div className="flex items-center justify-center gap-2 mb-6">
           <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
-          <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">
+          <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">
             Decentralized Protocol Live
           </span>
         </div>
 
-        <p className="text-center text-xs text-[#9ca3af] leading-relaxed mt-auto">
+        <p className="text-center text-xs text-[#9ca3af] dark:text-gray-500 leading-relaxed mt-auto">
           By continuing, you agree to our{" "}
-          <span className="text-[#1a2fb8] underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="text-[#1a2fb8] underline cursor-pointer">Privacy Policy</span>.
+          <span className="text-[#1a2fb8] dark:text-blue-400 underline cursor-pointer">Terms of Service</span> and{" "}
+          <span className="text-[#1a2fb8] dark:text-blue-400 underline cursor-pointer">Privacy Policy</span>.
         </p>
       </div>
     </div>
