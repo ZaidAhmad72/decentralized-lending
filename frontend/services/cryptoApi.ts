@@ -54,6 +54,12 @@ const CACHE_MS = 60_000;
 let priceInflight: Promise<CoinPrice[]> | null = null;
 const chartInflight = new Map<string, Promise<[number, number][]>>();
 
+/** Call this to force a fresh fetch on next request (e.g. user hits Refresh) */
+export function clearCache() {
+  priceCache = null;
+  chartCache.clear();
+}
+
 export async function fetchPrices(ids: string[]): Promise<CoinPrice[]> {
   // Return cached if fresh
   if (priceCache && Date.now() - priceCache.ts < CACHE_MS) return priceCache.data;

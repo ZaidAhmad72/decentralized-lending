@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  fetchPrices, fetchChart, allCoinIds,
+  fetchPrices, fetchChart, allCoinIds, clearCache,
   type CoinPrice, type TimeRange,
 } from "@/services/cryptoApi";
 
@@ -104,11 +104,17 @@ export function useCryptoData(): CryptoState {
   const selectCoin = useCallback((id: string) => setSelectedId(id), []);
   const selectRange = useCallback((r: TimeRange) => setSelectedRange(r), []);
 
+  const refresh = useCallback(() => {
+    clearCache(); // bust client-side cache so server is hit fresh
+    loadPrices();
+    if (selectedId) loadChart(selectedId, selectedRange);
+  }, [loadPrices, loadChart, selectedId, selectedRange]);
+
   return {
     prices, pricesLoading, pricesError,
     chartData, chartLoading, chartError,
     selectedId, selectedRange,
     selectCoin, selectRange,
-    refresh: loadPrices,
+    refresh,
   };
 }
