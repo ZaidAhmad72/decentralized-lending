@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import { createClient } from "@/utils/supabase/client";
 
-const user = {
+const defaultUser = {
   name: "Alexander Vance",
   score: 980,
   activeLoan: 12450.0,
@@ -19,6 +21,22 @@ const activity = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const supabase = createClient();
+  const [displayPhone, setDisplayPhone] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", data.user.id)
+        .single();
+      setDisplayPhone(profile?.name || data.user.email || "");
+    });
+  }, []);
+
+  const user = { ...defaultUser, name: displayPhone || defaultUser.name };
 
   return (
     <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
