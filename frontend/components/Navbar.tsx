@@ -80,7 +80,7 @@ export default function Navbar() {
       </nav>
 
       {/* ── Mobile bottom navbar (below lg) ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50 safe-area-pb">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50">
         {tabs.map((tab) => (
           <button
             key={tab.label}

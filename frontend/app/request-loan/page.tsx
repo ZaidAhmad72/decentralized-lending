@@ -48,7 +48,7 @@ export default function RequestLoanPage() {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
 
           {/* Left: form */}
-          <div className="w-full lg:max-w-lg xl:max-w-xl flex flex-col gap-5">
+          <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
             {/* Standing Card */}
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">

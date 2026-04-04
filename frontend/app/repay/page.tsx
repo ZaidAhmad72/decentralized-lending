@@ -54,7 +54,7 @@ export default function RepayPage() {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
 
           {/* Left: repay form */}
-          <div className="w-full lg:max-w-lg xl:max-w-xl flex flex-col gap-5">
+          <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
             {/* Loan Summary */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">

@@ -138,7 +138,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Right column (desktop): action buttons */}
-          <div className="flex flex-col gap-3 lg:w-72 xl:w-80">
+          <div className="flex flex-col gap-3 lg:w-72 lg:flex-shrink-0">
             <h2 className="text-xl font-black text-[#111827] hidden lg:block">Quick Actions</h2>
 
             <button
