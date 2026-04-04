@@ -1,8 +1,33 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getSavedLanguage } from "@/utils/translate";
 
 type Message = { role: "user" | "bot"; text: string };
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: "EN", hi: "HI", mr: "MR", ta: "TA", te: "TE", kn: "KN", gu: "GU",
+};
+
+const PLACEHOLDERS: Record<string, string> = {
+  en: "Ask about DeFi...",
+  hi: "DeFi के बारे में पूछें...",
+  mr: "DeFi बद्दल विचारा...",
+  ta: "DeFi பற்றி கேளுங்கள்...",
+  te: "DeFi గురించి అడగండి...",
+  kn: "DeFi ಬಗ್ಗೆ ಕೇಳಿ...",
+  gu: "DeFi વિશે પૂછો...",
+};
+
+const GREETINGS: Record<string, string> = {
+  en: "Hi! Ask me anything about DeFi, lending, wallets, or crypto.",
+  hi: "नमस्ते! DeFi, लेंडिंग, वॉलेट या क्रिप्टो के बारे में कुछ भी पूछें।",
+  mr: "नमस्कार! DeFi, लेंडिंग, वॉलेट किंवा क्रिप्टोबद्दल काहीही विचारा।",
+  ta: "வணக்கம்! DeFi, கடன், வாலட் அல்லது கிரிப்டோ பற்றி எதையும் கேளுங்கள்.",
+  te: "నమస్కారం! DeFi, రుణాలు, వాలెట్ లేదా క్రిప్టో గురించి ఏదైనా అడగండి.",
+  kn: "ನಮಸ್ಕಾರ! DeFi, ಸಾಲ, ವಾಲೆಟ್ ಅಥವಾ ಕ್ರಿಪ್ಟೋ ಬಗ್ಗೆ ಏನಾದರೂ ಕೇಳಿ.",
+  gu: "નમસ્તે! DeFi, ઉધાર, વૉલેટ અથવા ક્રિપ્ટો વિશે કંઈ પણ પૂછો.",
+};
 
 export interface ChatbotContext {
   reputationScore?: number;
@@ -16,12 +41,25 @@ export interface ChatbotContext {
 
 export default function Chatbot({ context }: { context?: ChatbotContext }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "bot", text: "Hi! Ask me anything about DeFi, lending, wallets, or crypto." },
-  ]);
+  const [language, setLang] = useState("en");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Sync language from localStorage + listen for changes
+  useEffect(() => {
+    const sync = () => {
+      const lang = getSavedLanguage();
+      setLang(lang);
+      setMessages([{ role: "bot", text: GREETINGS[lang] ?? GREETINGS.en }]);
+    };
+    sync();
+    window.addEventListener("storage", sync);
+    // Poll every 500ms to catch same-tab changes (Google Translate sets localStorage directly)
+    const interval = setInterval(sync, 500);
+    return () => { window.removeEventListener("storage", sync); clearInterval(interval); };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,7 +77,7 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, context }),
+        body: JSON.stringify({ message: text, context, language }),
       });
       const data = await res.json();
       setMessages((prev) => [
@@ -74,6 +112,9 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
             <div className="flex items-center gap-2">
               <span className="text-lg">🤖</span>
               <span className="text-white font-semibold text-sm">DeFi Assistant</span>
+              <span className="bg-indigo-500 text-indigo-100 text-xs font-bold px-2 py-0.5 rounded-full">
+                {LANGUAGE_LABELS[language] ?? "EN"}
+              </span>
             </div>
             <button onClick={() => setOpen(false)}
               className="text-indigo-200 hover:text-white text-xl leading-none"
@@ -114,7 +155,7 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask about DeFi..."
+              placeholder={PLACEHOLDERS[language] ?? PLACEHOLDERS.en}
               className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
               disabled={loading}
             />
