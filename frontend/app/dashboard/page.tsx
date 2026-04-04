@@ -10,6 +10,8 @@ import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, type Loan } from "@/services/loanService";
 import { getPoolStats, getUserTotalDeposited } from "@/services/poolService";
 import { getReputation, getCreditTier, getMaxLTV } from "@/services/reputationService";
+import { getCreditTierLabel, getCreditTierKey, TIER_BADGE_STYLES } from "@/utils/creditTier";
+import { getSavedLanguage } from "@/utils/translate";
 import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 
 export default function DashboardPage() {
@@ -23,8 +25,9 @@ export default function DashboardPage() {
   const [userDeposited, setUserDeposited] = useState(0);
   const [ethPrice, setEthPrice] = useState(0);
   const [creditScore, setCreditScore] = useState(500);
-  const [creditTier, setCreditTier] = useState("Good");
+  const [creditTierKey, setCreditTierKey] = useState<import("@/utils/creditTier").CreditTierKey>("Good");
   const [maxLTV, setMaxLTV] = useState(0.75);
+  const [lang, setLang] = useState("en");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,8 +56,9 @@ export default function DashboardPage() {
       setUserDeposited(deposited);
       setEthPrice(price);
       setCreditScore(rep.credit_score);
-      setCreditTier(getCreditTier(rep.credit_score));
+      setCreditTierKey(getCreditTier(rep.credit_score) as import("@/utils/creditTier").CreditTierKey);
       setMaxLTV(getMaxLTV(rep.credit_score));
+      setLang(getSavedLanguage());
 
       setLoading(false);
     };
@@ -154,13 +158,8 @@ export default function DashboardPage() {
                       <span className="text-3xl font-black text-[#111827] dark:text-white">{creditScore}</span>
                     </div>
                   </div>
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    creditTier === "Excellent" ? "bg-[#4ade80] text-[#14532d]" :
-                    creditTier === "Good" ? "bg-[#bfdbfe] text-[#1e40af]" :
-                    creditTier === "Fair" ? "bg-[#fef3c7] text-[#d97706]" :
-                    "bg-red-100 text-red-600"
-                  }`}>
-                    {creditTier.toUpperCase()}
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${TIER_BADGE_STYLES[creditTierKey]}`}>
+                    {getCreditTierLabel(creditScore, lang).toUpperCase()}
                   </span>
                 </div>
                 <p className="text-center text-xs text-[#6b7280] dark:text-gray-400">Credit Score · LTV {(maxLTV * 100).toFixed(0)}%</p>
@@ -264,7 +263,7 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-3">
                 {[
                   { label: "Credit Score", value: `${creditScore} / 1000` },
-                  { label: "Credit Tier", value: creditTier },
+                  { label: "Credit Tier", value: getCreditTierLabel(creditScore, lang) },
                   { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },
                   { label: "Active Loan", value: activeLoan ? formatINR(activeLoanINR) : "None" },
                   { label: "Loan Status", value: activeLoan ? activeLoan.status : "—" },
