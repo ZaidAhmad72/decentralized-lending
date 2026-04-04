@@ -1,28 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 export default function AuthPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(
-    searchParams.get("error") ? "Session expired. Please log in again." : ""
-  );
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     setError("");
 
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
@@ -34,67 +36,54 @@ export default function AuthPage() {
     setLoading(true);
 
     if (mode === "signup") {
-      // Check if email already registered
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
+      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
 
-      if (existing) {
-        setError("Account already exists. Please log in.");
+      if (signUpError) {
+        setError(signUpError.message);
         setLoading(false);
         return;
       }
 
-      // Create auth user with a deterministic password (email-based, never shown to user)
-      const password = `vault_${email}_secret`;
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) { setError(signUpError.message); setLoading(false); return; }
-
-      const user = signUpData.user;
+      const user = data.user;
       if (user) {
-        await supabase.from("profiles").insert([{
-          id: user.id,
-          email,
-          name: name.trim(),
-          age: Number(age),
-          trust_score: 50,
-        }]);
-      }
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .single();
 
-      router.push("/dashboard");
+        if (!existing) {
+          const { error: profileError } = await supabase.from("profiles").insert([{
+            id: user.id,
+            email,
+            name: name.trim(),
+            age: Number(age),
+            trust_score: 50,
+          }]);
+          if (profileError) { setError(profileError.message); setLoading(false); return; }
+        }
+        router.push("/dashboard");
+      }
 
     } else {
-      // Login — check profile exists first
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (!profile) {
-        setError("No account found. Please sign up first.");
+      if (signInError) {
+        setError("Invalid email or password.");
         setLoading(false);
         return;
       }
-
-      const password = `vault_${email}_secret`;
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) { setError("Login failed. Please try again."); setLoading(false); return; }
 
       router.push("/dashboard");
     }
 
     setLoading(false);
+  };
+
+  const switchMode = () => {
+    setMode(mode === "login" ? "signup" : "login");
+    setError("");
+    setPassword("");
   };
 
   return (
@@ -132,8 +121,28 @@ export default function AuthPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               placeholder="Enter your email"
+              className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Password */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+            Password
+          </label>
+          <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+            </svg>
+            <div className="w-px h-5 bg-[#d1d5db]" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="Enter your password"
               className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
             />
           </div>
@@ -199,12 +208,9 @@ export default function AuthPage() {
 
         {/* Mode toggle */}
         <p className="text-center text-sm text-[#6b7280] mb-6">
-          {mode === "login" ? "New to Vault? " : "Already have an account? "}
-          <button
-            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
-            className="text-[#1a2fb8] font-bold"
-          >
-            {mode === "login" ? "Sign up" : "Log in"}
+          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+          <button onClick={switchMode} className="text-[#1a2fb8] font-bold">
+            {mode === "login" ? "Sign Up" : "Log In"}
           </button>
         </p>
 
