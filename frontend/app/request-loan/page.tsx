@@ -7,6 +7,8 @@ import { createClient } from "@/utils/supabase/client";
 import { borrowFromPool } from "@/services/loanService";
 import { getPoolStats } from "@/services/poolService";
 import { getReputation, getMaxLTV, getCreditTier } from "@/services/reputationService";
+import { getCreditTierLabel, getCreditTierKey, TIER_BADGE_STYLES, type CreditTierKey } from "@/utils/creditTier";
+import { getSavedLanguage } from "@/utils/translate";
 import { getEthPriceINR, formatINR, ethToINR, inrToETH } from "@/utils/getEthPrice";
 
 const DURATION_OPTIONS = [
@@ -30,8 +32,9 @@ export default function RequestLoanPage() {
   const [availableLiquidity, setAvailableLiquidity] = useState(0);
   const [ethPrice, setEthPrice] = useState(0);
   const [creditScore, setCreditScore] = useState(500);
-  const [creditTier, setCreditTier] = useState("Good");
+  const [creditTierKey, setCreditTierKey] = useState<CreditTierKey>("Good");
   const [maxLTV, setMaxLTV] = useState(0.75);
+  const [lang, setLang] = useState("en");
 
   useEffect(() => {
     const load = async () => {
@@ -48,8 +51,9 @@ export default function RequestLoanPage() {
         setAvailableLiquidity(stats.total_liquidity - stats.total_borrowed);
         setEthPrice(price);
         setCreditScore(rep.credit_score);
-        setCreditTier(getCreditTier(rep.credit_score));
+        setCreditTierKey(getCreditTierKey(rep.credit_score));
         setMaxLTV(getMaxLTV(rep.credit_score));
+        setLang(getSavedLanguage());
       } catch (err) {
         console.error(err);
       }
@@ -64,12 +68,6 @@ export default function RequestLoanPage() {
   const availableLiquidityINR = ethToINR(availableLiquidity, ethPrice);
   const maxBorrowINR = availableLiquidityINR * maxLTV;
 
-  const tierColor: Record<string, string> = {
-    Excellent: "bg-[#4ade80] text-[#14532d]",
-    Good: "bg-[#bfdbfe] text-[#1e40af]",
-    Fair: "bg-[#fef3c7] text-[#d97706]",
-    Poor: "bg-red-100 text-red-600",
-  };
 
   const handleSubmit = async () => {
     setError("");
@@ -122,8 +120,8 @@ export default function RequestLoanPage() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${tierColor[creditTier] ?? "bg-gray-100 text-gray-600"}`}>
-              {creditTier}
+            <span className={`text-xs font-bold px-3 py-1 rounded-full ${TIER_BADGE_STYLES[creditTierKey]}`}>
+              {getCreditTierLabel(creditScore, lang)}
             </span>
             <span className="text-xs text-[#6b7280] dark:text-gray-400">Max LTV: {(maxLTV * 100).toFixed(0)}%</span>
           </div>
@@ -226,12 +224,13 @@ export default function RequestLoanPage() {
               <p className="text-xs font-bold text-[#1a2fb8] uppercase tracking-widest mb-3">Credit Tiers</p>
               <div className="flex flex-col gap-2">
                 {[
-                  { tier: "Excellent", range: "> 800", ltv: "85%", active: creditScore > 800 },
-                  { tier: "Good", range: "600–800", ltv: "75%", active: creditScore >= 600 && creditScore <= 800 },
-                  { tier: "Fair / Poor", range: "< 600", ltv: "60%", active: creditScore < 600 },
+                  { key: "Excellent" as CreditTierKey, range: "> 800", ltv: "85%", active: creditScore >= 800 },
+                  { key: "Good"      as CreditTierKey, range: "650–799", ltv: "75%", active: creditScore >= 650 && creditScore < 800 },
+                  { key: "Average"   as CreditTierKey, range: "400–649", ltv: "65%", active: creditScore >= 400 && creditScore < 650 },
+                  { key: "Poor"      as CreditTierKey, range: "< 400",  ltv: "60%", active: creditScore < 400 },
                 ].map((t) => (
-                  <div key={t.tier} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-semibold ${t.active ? "bg-[#1a2fb8] text-white" : "text-[#6b7280] dark:text-gray-400"}`}>
-                    <span>{t.tier} ({t.range})</span>
+                  <div key={t.key} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-semibold ${t.active ? "bg-[#1a2fb8] text-white" : "text-[#6b7280] dark:text-gray-400"}`}>
+                    <span>{getCreditTierLabel(0, lang) && getCreditTierLabel(t.key === "Excellent" ? 800 : t.key === "Good" ? 650 : t.key === "Average" ? 400 : 0, lang)} ({t.range})</span>
                     <span>Max LTV {t.ltv}</span>
                   </div>
                 ))}
