@@ -36,9 +36,9 @@ export function getMaxLTV(creditScore: number): number {
 }
 
 export function getCreditTier(creditScore: number): string {
-  if (creditScore > 800) return "Excellent";
-  if (creditScore >= 600) return "Good";
-  if (creditScore >= 400) return "Fair";
+  if (creditScore >= 900) return "Excellent";
+  if (creditScore >= 700) return "Good";
+  if (creditScore >= 500) return "Fair";
   return "Poor";
 }
 
