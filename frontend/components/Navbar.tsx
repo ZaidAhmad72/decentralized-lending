@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 const tabs = [
   {
@@ -44,11 +45,18 @@ const tabs = [
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClient();
+
   const isActive = (tab: (typeof tabs)[0]) => pathname === tab.path;
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
 
   return (
     <>
-      {/* ── Desktop top navbar (lg and above) ── */}
+      {/* ── Desktop top navbar ── */}
       <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e9f0] shadow-sm items-center justify-between px-10 h-16">
         <span
           className="text-[#1a2fb8] font-black text-xl tracking-tight cursor-pointer select-none"
@@ -74,12 +82,15 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="bg-[#1a2fb8] text-white text-xs font-bold px-4 py-2 rounded-full tracking-wide">
-          980 SCORE
-        </div>
+        <button
+          onClick={handleLogout}
+          className="text-sm font-semibold text-[#6b7280] hover:text-red-500 transition-colors px-3 py-2 rounded-xl hover:bg-red-50"
+        >
+          Logout
+        </button>
       </nav>
 
-      {/* ── Mobile bottom navbar (below lg) ── */}
+      {/* ── Mobile bottom navbar ── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50">
         {tabs.map((tab) => (
           <button
@@ -93,6 +104,16 @@ export default function Navbar() {
             {tab.label}
           </button>
         ))}
+        {/* Mobile logout */}
+        <button
+          onClick={handleLogout}
+          className="flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[9px] font-bold tracking-wider text-red-400"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+          </svg>
+          LOGOUT
+        </button>
       </div>
     </>
   );
