@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { retrieveContext } from "@/utils/rag";
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English", hi: "Hindi", mr: "Marathi",
@@ -8,9 +9,10 @@ const LANGUAGE_NAMES: Record<string, string> = {
 function buildSystemPrompt(languageName: string) {
   return `You are a DeFi assistant for a decentralized lending platform.
 You MUST always respond in ${languageName}. Every single reply must be in ${languageName} only.
-Only answer questions related to decentralized finance, blockchain, crypto markets, lending, borrowing, wallets, tokens, smart contracts, yield, staking, and risk management.
+Only answer questions related to decentralized finance, blockchain, crypto markets, lending, borrowing, wallets, tokens, smart contracts, yield, staking, risk management, and knowledge base pipeline topics.
+When a KNOWLEDGE BASE section is provided, prioritize that information and ground your answer in it. Cite it naturally (e.g. "According to the documentation...").
 If the question is unrelated to these topics, respond in ${languageName} with: "I can only assist with DeFi-related questions."
-Keep answers concise and beginner-friendly.`;
+Keep answers concise and beginner-friendly. Avoid hallucinating facts not present in the provided context.`;
 }
 
 export async function POST(req: NextRequest) {
@@ -27,6 +29,9 @@ export async function POST(req: NextRequest) {
   const languageName = LANGUAGE_NAMES[language ?? "en"] ?? "English";
   const systemPrompt = buildSystemPrompt(languageName);
 
+  // RAG: retrieve relevant document chunks for this query
+  const docContext = retrieveContext(message);
+
   const contextBlock = context
     ? `\n\nCurrent user data (use this to answer user-specific questions):
 - Reputation Score: ${context.reputationScore ?? "unknown"}
@@ -38,7 +43,7 @@ export async function POST(req: NextRequest) {
 - Wallet Address: ${context.walletAddress ?? "unknown"}`
     : "";
 
-  const fullSystemPrompt = systemPrompt + contextBlock;
+  const fullSystemPrompt = systemPrompt + contextBlock + docContext;
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {

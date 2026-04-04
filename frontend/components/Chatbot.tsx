@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getSavedLanguage } from "@/utils/translate";
+import { BotMessageSquare } from "lucide-react";
 
 type Message = { role: "user" | "bot"; text: string };
 
@@ -20,13 +21,13 @@ const PLACEHOLDERS: Record<string, string> = {
 };
 
 const GREETINGS: Record<string, string> = {
-  en: "Hi! Ask me anything about DeFi, lending, wallets, or crypto.",
-  hi: "नमस्ते! DeFi, लेंडिंग, वॉलेट या क्रिप्टो के बारे में कुछ भी पूछें।",
-  mr: "नमस्कार! DeFi, लेंडिंग, वॉलेट किंवा क्रिप्टोबद्दल काहीही विचारा।",
-  ta: "வணக்கம்! DeFi, கடன், வாலட் அல்லது கிரிப்டோ பற்றி எதையும் கேளுங்கள்.",
-  te: "నమస్కారం! DeFi, రుణాలు, వాలెట్ లేదా క్రిప్టో గురించి ఏదైనా అడగండి.",
-  kn: "ನಮಸ್ಕಾರ! DeFi, ಸಾಲ, ವಾಲೆಟ್ ಅಥವಾ ಕ್ರಿಪ್ಟೋ ಬಗ್ಗೆ ಏನಾದರೂ ಕೇಳಿ.",
-  gu: "નમસ્તે! DeFi, ઉધાર, વૉલેટ અથવા ક્રિપ્ટો વિશે કંઈ પણ પૂછો.",
+  en: "Hello! How can I help you today? Ask me anything about DeFi, lending, wallets, or crypto.",
+  hi: "नमस्ते! मैं आज आपकी कैसे मदद कर सकता हूँ? DeFi, लेंडिंग, वॉलेट या क्रिप्टो के बारे में पूछें।",
+  mr: "नमस्कार! मी आज तुम्हाला कशी मदत करू शकतो? DeFi, लेंडिंग, वॉलेट किंवा क्रिप्टोबद्दल विचारा।",
+  ta: "வணக்கம்! இன்று நான் உங்களுக்கு எப்படி உதவலாம்? DeFi, கடன், வாலட் அல்லது கிரிப்டோ பற்றி கேளுங்கள்.",
+  te: "నమస్కారం! నేను ఈరోజు మీకు ఎలా సహాయం చేయగలను? DeFi, రుణాలు, వాలెట్ లేదా క్రిప్టో గురించి అడగండి.",
+  kn: "ನಮಸ್ಕಾರ! ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು? DeFi, ಸಾಲ, ವಾಲೆಟ್ ಅಥವಾ ಕ್ರಿಪ್ಟೋ ಬಗ್ಗೆ ಕೇಳಿ.",
+  gu: "નમસ્તે! આજે હું તમારી કેવી રીતે મદદ કરી શકું? DeFi, ઉધાર, વૉલેટ અથવા ક્રિપ્ટો વિશે પૂછો.",
 };
 
 export interface ChatbotContext {
@@ -42,7 +43,9 @@ export interface ChatbotContext {
 export default function Chatbot({ context }: { context?: ChatbotContext }) {
   const [open, setOpen] = useState(false);
   const [language, setLang] = useState("en");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: "bot", text: GREETINGS.en },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -51,12 +54,18 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
   useEffect(() => {
     const sync = () => {
       const lang = getSavedLanguage();
-      setLang(lang);
-      setMessages([{ role: "bot", text: GREETINGS[lang] ?? GREETINGS.en }]);
+      setLang((prev) => {
+        if (prev === lang) return prev;
+        setMessages([{ role: "bot", text: GREETINGS[lang] ?? GREETINGS.en }]);
+        return lang;
+      });
     };
-    sync();
+    // Set correct greeting on mount in case saved language isn't "en"
+    const initialLang = getSavedLanguage();
+    setLang(initialLang);
+    setMessages([{ role: "bot", text: GREETINGS[initialLang] ?? GREETINGS.en }]);
+
     window.addEventListener("storage", sync);
-    // Poll every 500ms to catch same-tab changes (Google Translate sets localStorage directly)
     const interval = setInterval(sync, 500);
     return () => { window.removeEventListener("storage", sync); clearInterval(interval); };
   }, []);
@@ -110,7 +119,7 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
           {/* Header */}
           <div className="bg-indigo-600 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🤖</span>
+              <BotMessageSquare size={20} className="text-white" />
               <span className="text-white font-semibold text-sm">DeFi Assistant</span>
               <span className="bg-indigo-500 text-indigo-100 text-xs font-bold px-2 py-0.5 rounded-full">
                 {LANGUAGE_LABELS[language] ?? "EN"}
@@ -156,7 +165,7 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
               placeholder={PLACEHOLDERS[language] ?? PLACEHOLDERS.en}
-              className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+              className="flex-1 text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 placeholder-gray-400"
               disabled={loading}
             />
             <button
@@ -173,9 +182,9 @@ export default function Chatbot({ context }: { context?: ChatbotContext }) {
       {/* Floating button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-105"
+        className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105"
         aria-label="Open DeFi assistant">
-        {open ? "✕" : "💬"}
+        {open ? <span className="text-xl font-bold">✕</span> : <BotMessageSquare size={26} />}
       </button>
     </div>
   );
