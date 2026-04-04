@@ -1,56 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-async function checkUserExists(supabase: ReturnType<typeof createClient>, email: string) {
-  const { data } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .single();
-  return !!data;
-}
-
-async function signupUser(
-  supabase: ReturnType<typeof createClient>,
-  email: string,
-  name: string,
-  age: number
-) {
-  // Step 1: create auth user via OTP (disabled for now — auto-confirm assumed)
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true },
-  });
-  if (signInError) throw signInError;
-
-  // Step 2: get the session/user that was just created
-  // Since OTP is disabled (auto-confirm on), getUser works immediately
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) throw userError ?? new Error("No user found");
-
-  // Step 3: insert profile
-  const { error: profileError } = await supabase.from("profiles").insert([
-    { id: userData.user.id, email, name, age, trust_score: 50 },
-  ]);
-  if (profileError) throw profileError;
-
-  return userData.user;
-}
-
-async function loginUser(supabase: ReturnType<typeof createClient>, email: string) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false },
-  });
-  if (error) throw error;
-}
-
-// ─── component ──────────────────────────────────────────────────────────────
 
 export default function AuthPage() {
   const router = useRouter();
@@ -58,150 +10,92 @@ export default function AuthPage() {
   const supabase = createClient();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [step, setStep] = useState<"form" | "otp">("form");
-
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
-
-  // OTP state — kept but bypassed for now
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const otpRefs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
     searchParams.get("error") ? "Session expired. Please log in again." : ""
   );
-  const [successMsg, setSuccessMsg] = useState("");
 
-  // ── OTP input handlers (kept for future re-enable) ──
-  const handleOtpChange = (index: number, val: string) => {
-    if (!/^\d?$/.test(val)) return;
-    const next = [...otp];
-    next[index] = val;
-    setOtp(next);
-    if (val && index < 5) otpRefs[index + 1].current?.focus();
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs[index - 1].current?.focus();
-    }
-  };
-
-  // ── Check email and route to correct mode ──
-  const handleEmailContinue = async () => {
+  const handleSubmit = async () => {
     setError("");
+
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
       return;
     }
+
+    if (mode === "signup") {
+      if (!name.trim()) { setError("Please enter your name."); return; }
+      if (!age || Number(age) < 18) { setError("Age must be 18 or older."); return; }
+    }
+
     setLoading(true);
-    const exists = await checkUserExists(supabase, email);
-    setLoading(false);
-    if (exists) {
-      setMode("login");
+
+    if (mode === "signup") {
+      // Check if email already registered
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+      if (existing) {
+        setError("Account already exists. Please log in.");
+        setLoading(false);
+        return;
+      }
+
+      // Create auth user with a deterministic password (email-based, never shown to user)
+      const password = `vault_${email}_secret`;
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) { setError(signUpError.message); setLoading(false); return; }
+
+      const user = signUpData.user;
+      if (user) {
+        await supabase.from("profiles").insert([{
+          id: user.id,
+          email,
+          name: name.trim(),
+          age: Number(age),
+          trust_score: 50,
+        }]);
+      }
+
+      router.push("/dashboard");
+
     } else {
-      setMode("signup");
-    }
-    setStep("form");
-  };
+      // Login — check profile exists first
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
 
-  // ── Signup submit ──
-  const handleSignup = async () => {
-    setError("");
-    if (!name.trim()) { setError("Please enter your name."); return; }
-    if (!age || isNaN(Number(age)) || Number(age) < 18) {
-      setError("Please enter a valid age (18+).");
-      return;
-    }
-    setLoading(true);
-    try {
-      // OTP DISABLED: using signInWithPassword workaround via magic link auto-confirm
-      // When OTP is re-enabled, this will send OTP and move to step "otp"
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: true },
-      });
-      if (signInError) throw signInError;
-
-      // Since "Confirm email" is OFF in Supabase, user is auto-confirmed
-      // Fetch the user immediately
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user) {
-        // Check if profile already exists to avoid duplicate insert
-        const { data: existing } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", userData.user.id)
-          .single();
-
-        if (!existing) {
-          await supabase.from("profiles").insert([
-            { id: userData.user.id, email, name: name.trim(), age: Number(age), trust_score: 50 },
-          ]);
-        }
-        router.push("/dashboard");
-      } else {
-        setSuccessMsg("Check your email to complete signup.");
-        setStep("otp");
+      if (!profile) {
+        setError("No account found. Please sign up first.");
+        setLoading(false);
+        return;
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Signup failed.");
-    }
-    setLoading(false);
-  };
 
-  // ── Login submit ──
-  const handleLogin = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const { error: signInError } = await supabase.auth.signInWithOtp({
+      const password = `vault_${email}_secret`;
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        options: { shouldCreateUser: false },
+        password,
       });
-      if (signInError) throw signInError;
 
-      // Since "Confirm email" is OFF, user is auto-logged in
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user) {
-        router.push("/dashboard");
-      } else {
-        setSuccessMsg("Check your email for your login link.");
-        setStep("otp");
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed.");
+      if (signInError) { setError("Login failed. Please try again."); setLoading(false); return; }
+
+      router.push("/dashboard");
     }
+
     setLoading(false);
   };
-
-  // ── OTP verify (re-enable when SMTP is ready) ──
-  const handleVerifyOtp = async () => {
-    setError("");
-    const token = otp.join("");
-    if (token.length < 6) { setError("Please enter the full 6-digit code."); return; }
-    setLoading(true);
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email, token, type: "email",
-    });
-    if (verifyError) { setLoading(false); setError(verifyError.message); return; }
-
-    if (data.user && mode === "signup") {
-      await supabase.from("profiles").insert([
-        { id: data.user.id, email, name: name.trim(), age: Number(age), trust_score: 50 },
-      ]);
-    }
-    setLoading(false);
-    router.push("/dashboard");
-  };
-
-  const isLoginMode = mode === "login";
-  const headingText = isLoginMode ? "Welcome back." : "Create account.";
-  const subText = isLoginMode
-    ? "Log in to access your decentralized assets."
-    : "Sign up to get started on Vault.";
 
   return (
     <div className="min-h-screen bg-[#eef2f7] flex flex-col lg:items-center lg:justify-center">
@@ -214,155 +108,107 @@ export default function AuthPage() {
 
         {/* Heading */}
         <div className="mb-8">
-          <h1 className="text-4xl font-black text-[#111827] leading-tight mb-2">{headingText}</h1>
-          <p className="text-[#6b7280] text-base leading-relaxed">{subText}</p>
+          <h1 className="text-4xl font-black text-[#111827] leading-tight mb-2">
+            {mode === "login" ? "Welcome back." : "Create account."}
+          </h1>
+          <p className="text-[#6b7280] text-base leading-relaxed">
+            {mode === "login"
+              ? "Log in to access your decentralized assets."
+              : "Sign up to get started on Vault."}
+          </p>
         </div>
 
-        {step === "form" && (
+        {/* Email */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+            Email Address
+          </label>
+          <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            </svg>
+            <div className="w-px h-5 bg-[#d1d5db]" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="Enter your email"
+              className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Signup-only fields */}
+        {mode === "signup" && (
           <>
-            {/* Email */}
             <div className="mb-4">
               <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-                Email Address
+                Full Name
               </label>
               <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                  <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
                 </svg>
                 <div className="w-px h-5 bg-[#d1d5db]" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
                   className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
                 />
               </div>
             </div>
 
-            {/* Signup-only fields */}
-            {mode === "signup" && (
-              <>
-                <div className="mb-4">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-                    Full Name
-                  </label>
-                  <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
-                    </svg>
-                    <div className="w-px h-5 bg-[#d1d5db]" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your full name"
-                      className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
-                    Age
-                  </label>
-                  <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                      <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
-                    </svg>
-                    <div className="w-px h-5 bg-[#d1d5db]" />
-                    <input
-                      type="number"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      placeholder="Your age"
-                      min="18"
-                      max="120"
-                      className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Submit button */}
-            <button
-              onClick={mode === "signup" ? handleSignup : handleLogin}
-              disabled={loading}
-              className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 mb-4 disabled:opacity-70"
-            >
-              {loading ? "Please wait..." : isLoginMode ? "Log In" : "Sign Up"}
-              {!loading && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                  <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            <div className="mb-4">
+              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">
+                Age
+              </label>
+              <div className="flex items-center bg-white rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+                  <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
                 </svg>
-              )}
-            </button>
-
-            {/* Mode toggle */}
-            <p className="text-center text-sm text-[#6b7280] mb-6">
-              {isLoginMode ? "New to Vault? " : "Already have an account? "}
-              <button
-                onClick={() => {
-                  setMode(isLoginMode ? "signup" : "login");
-                  setError("");
-                  setSuccessMsg("");
-                }}
-                className="text-[#1a2fb8] font-bold"
-              >
-                {isLoginMode ? "Sign up" : "Log in"}
-              </button>
-            </p>
-          </>
-        )}
-
-        {/* OTP step — kept, disabled for now, will activate when SMTP ready */}
-        {step === "otp" && (
-          <>
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">
-                  Verification Code
-                </label>
-                <button
-                  onClick={() => { setStep("form"); setOtp(["","","","","",""]); }}
-                  className="text-xs font-bold text-[#1a2fb8] tracking-widest uppercase"
-                >
-                  Back
-                </button>
-              </div>
-              <div className="flex gap-2">
-                {otp.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={otpRefs[i]}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className="flex-1 aspect-square bg-white rounded-2xl text-center text-xl font-bold text-[#111827] border border-[#e5e9f0] shadow-sm outline-none focus:border-[#1a2fb8] transition-colors"
-                  />
-                ))}
+                <div className="w-px h-5 bg-[#d1d5db]" />
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="Your age"
+                  min="18"
+                  className="flex-1 outline-none text-base text-[#374151] placeholder-[#9ca3af] bg-transparent"
+                />
               </div>
             </div>
-            <button
-              onClick={handleVerifyOtp}
-              disabled={loading}
-              className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg hover:bg-[#1527a0] transition-all active:scale-95 mb-6 disabled:opacity-70"
-            >
-              {loading ? "Verifying..." : "Verify & Continue"}
-            </button>
           </>
         )}
 
-        {/* Messages */}
-        {successMsg && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-2xl px-4 py-3 mb-4">
-            {successMsg}
-          </div>
-        )}
+        {/* Submit */}
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 mb-4 disabled:opacity-70"
+        >
+          {loading ? "Please wait..." : mode === "login" ? "Log In" : "Sign Up"}
+          {!loading && (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+          )}
+        </button>
+
+        {/* Mode toggle */}
+        <p className="text-center text-sm text-[#6b7280] mb-6">
+          {mode === "login" ? "New to Vault? " : "Already have an account? "}
+          <button
+            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
+            className="text-[#1a2fb8] font-bold"
+          >
+            {mode === "login" ? "Sign up" : "Log in"}
+          </button>
+        </p>
+
+        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl px-4 py-3 mb-4">
             {error}
@@ -386,7 +232,6 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Protocol Status */}
         <div className="flex items-center justify-center gap-2 mb-6">
           <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
           <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">
