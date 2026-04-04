@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useWallet } from "@/wallet/walletHooks";
 import Navbar from "@/components/Navbar";
 import WalletCard from "@/components/WalletCard";
+import Chatbot from "@/components/Chatbot";
 import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, type Loan } from "@/services/loanService";
 import { getPoolStats, getUserTotalDeposited } from "@/services/poolService";
@@ -13,6 +15,7 @@ import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { balance: walletBalance, address: walletAddress } = useWallet();
 
   const [profile, setProfile] = useState({ name: "", reputation_score: 0 });
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
@@ -277,6 +280,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <Chatbot context={{
+        reputationScore: profile.reputation_score,
+        activeLoan: activeLoan ? { amount: activeLoan.amount, status: activeLoan.status, daysLeft } : null,
+        userDeposited,
+        poolLiquidity: poolStats.total_liquidity,
+        poolAvailable: poolStats.total_liquidity - poolStats.total_borrowed,
+        walletBalance: walletBalance ?? undefined,
+        walletAddress: walletAddress ?? undefined,
+      }} />
       <Navbar />
     </div>
   );
