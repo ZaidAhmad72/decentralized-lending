@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getWalletInfo, addTestETH, simulateTransaction } from "@/services/walletService";
 import { getEthPriceINR, formatINR, formatETH, ethToINR } from "@/utils/getEthPrice";
+import { CRYPTO_CONFIGS, type CryptoSymbol } from "@/utils/cryptoConfig";
+import { fetchCryptoPrices, inrToCrypto } from "@/utils/cryptoPriceService";
 
 export default function WalletCard() {
   const supabase = createClient();
@@ -16,15 +18,22 @@ export default function WalletCard() {
   const [toast, setToast] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoSymbol>("ETH");
+  const [cryptoPrices, setCryptoPrices] = useState<Record<CryptoSymbol, number>>({} as Record<CryptoSymbol, number>);
+  const [showCryptoSelector, setShowCryptoSelector] = useState(false);
 
   useEffect(() => {
     loadWallet();
     loadPrice();
+    loadCryptoPrice();
 
     // Auto-refresh price every 60 seconds
-    const interval = setInterval(loadPrice, 60000);
+    const interval = setInterval(() => {
+      loadPrice();
+      loadCryptoPrice();
+    }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedCrypto]);
 
   const loadWallet = async () => {
     try {
@@ -54,7 +63,16 @@ export default function WalletCard() {
     setPriceLoading(false);
   };
 
-  const handleAddETH = async (amount: number) => {
+  const loadCryptoPrice = async () => {
+    try {
+      const result = await fetchCryptoPrices();
+      setCryptoPrices(result.prices);
+    } catch (err) {
+      console.error("Failed to load crypto prices:", err);
+    }
+  };
+
+  const handleAddCrypto = async (amount: number) => {
     setAdding(true);
     setShowCustomInput(false);
     setCustomAmount("");
@@ -65,12 +83,21 @@ export default function WalletCard() {
       if (!user) return;
 
       await simulateTransaction("faucet");
-      const newBalance = await addTestETH(user.id, amount);
+      
+      // Convert crypto amount to ETH for backend storage
+      // First convert crypto to INR, then INR to ETH
+      const cryptoConfig = CRYPTO_CONFIGS[selectedCrypto];
+      const cryptoPrice = cryptoPrices[selectedCrypto] || 0;
+      const inrValue = amount * cryptoPrice;
+      const ethAmount = inrToCrypto(inrValue, "ETH", cryptoPrices);
+      
+      const newBalance = await addTestETH(user.id, ethAmount);
       setBalance(newBalance);
-      setToast(`✅ ${amount} ETH added (Demo)`);
+      
+      setToast(`✅ ${amount} ${cryptoConfig.symbol} added (Demo)`);
       setTimeout(() => setToast(""), 3000);
     } catch {
-      setToast("❌ Failed to add ETH");
+      setToast("❌ Failed to add crypto");
       setTimeout(() => setToast(""), 3000);
     }
     setAdding(false);
@@ -78,12 +105,23 @@ export default function WalletCard() {
 
   const handleCustomSubmit = () => {
     const val = parseFloat(customAmount);
-    if (!val || val <= 0 || val > 100) {
-      setToast("❌ Enter a value between 0.001 and 100");
+    if (!val || val <= 0 || val > 100000000) {
+      setToast("❌ Enter a valid amount");
       setTimeout(() => setToast(""), 2000);
       return;
     }
-    handleAddETH(val);
+    handleAddCrypto(val);
+  };
+
+  const getPresetAmounts = () => {
+    const crypto = CRYPTO_CONFIGS[selectedCrypto];
+    if (crypto.riskLevel === "Low Risk") {
+      return [100, 500, 1000, 5000]; // Stablecoins
+    } else if (crypto.riskLevel === "High Risk") {
+      return [1000000, 5000000, 10000000, 50000000]; // Memecoins
+    } else {
+      return [0.5, 1, 2, 5]; // Standard crypto
+    }
   };
 
   const balanceINR = ethToINR(balance, ethPrice);
@@ -167,54 +205,114 @@ export default function WalletCard() {
         {/* Faucet */}
         {showCustomInput ? (
           <div className="flex flex-col gap-2">
-            {/* Custom input */}
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.15)" }}>
-              <input
-                type="number"
-                value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
-                placeholder="0.5"
-                step="0.1"
-                min="0.001"
-                max="100"
-                autoFocus
-                style={{ background: "transparent", color: "white", outline: "none", width: "100%", fontWeight: 700, fontSize: "1rem" }}
-              />
-              <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>ETH</span>
-            </div>
-            {/* Presets */}
-            <div className="flex gap-2">
-              {[0.5, 1, 2, 5].map((preset) => (
+            {/* Crypto Selector */}
+            {showCryptoSelector ? (
+              <div className="rounded-xl p-2 max-h-60 overflow-y-auto" style={{ background: "rgba(255,255,255,0.15)" }}>
+                {(Object.keys(CRYPTO_CONFIGS) as CryptoSymbol[]).map((symbol) => {
+                  const crypto = CRYPTO_CONFIGS[symbol];
+                  return (
+                    <button
+                      key={symbol}
+                      onClick={() => {
+                        setSelectedCrypto(symbol);
+                        setShowCryptoSelector(false);
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{crypto.icon}</span>
+                        <div className="text-left">
+                          <p className="text-sm font-bold">{crypto.name}</p>
+                          <p className="text-xs opacity-70">{crypto.symbol}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        crypto.riskLevel === "Low Risk" 
+                          ? "bg-green-500 bg-opacity-20 text-green-200"
+                          : crypto.riskLevel === "High Risk"
+                          ? "bg-red-500 bg-opacity-20 text-red-200"
+                          : "bg-blue-500 bg-opacity-20 text-blue-200"
+                      }`}>
+                        {crypto.riskLevel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                {/* Selected Crypto Display */}
                 <button
-                  key={preset}
-                  onClick={() => handleAddETH(preset)}
-                  disabled={adding}
-                  style={{ background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 700, fontSize: "0.75rem" }}
-                  className="flex-1 py-2 rounded-lg transition-all disabled:opacity-50 hover:opacity-80"
+                  onClick={() => setShowCryptoSelector(true)}
+                  className="flex items-center justify-between rounded-xl px-3 py-2 hover:opacity-80 transition-all"
+                  style={{ background: "rgba(255,255,255,0.15)" }}
                 >
-                  +{preset}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{CRYPTO_CONFIGS[selectedCrypto].icon}</span>
+                    <div className="text-left">
+                      <p className="text-xs font-bold">{CRYPTO_CONFIGS[selectedCrypto].name}</p>
+                      <p className="text-[10px] opacity-70">{CRYPTO_CONFIGS[selectedCrypto].symbol}</p>
+                    </div>
+                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                    <path d="M7 10l5 5 5-5z" />
+                  </svg>
                 </button>
-              ))}
-            </div>
-            {/* Confirm / Cancel */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleCustomSubmit}
-                disabled={adding || !customAmount}
-                className="flex-1 rounded-xl py-2.5 font-bold text-sm transition-all disabled:opacity-50"
-                style={{ background: "white", color: "#1a2fb8" }}
-              >
-                {adding ? "Adding..." : "Add ETH"}
-              </button>
-              <button
-                onClick={() => { setShowCustomInput(false); setCustomAmount(""); }}
-                className="w-10 rounded-xl font-bold text-base transition-all hover:opacity-80"
-                style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
-              >
-                ✕
-              </button>
-            </div>
+
+                {/* Custom input */}
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.15)" }}>
+                  <input
+                    type="number"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
+                    placeholder="0.5"
+                    step="0.1"
+                    min="0.001"
+                    max="100000000"
+                    autoFocus
+                    style={{ background: "transparent", color: "white", outline: "none", width: "100%", fontWeight: 700, fontSize: "1rem" }}
+                  />
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>
+                    {CRYPTO_CONFIGS[selectedCrypto].symbol}
+                  </span>
+                </div>
+
+                {/* Presets */}
+                <div className="flex gap-2">
+                  {getPresetAmounts().map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => handleAddCrypto(preset)}
+                      disabled={adding}
+                      style={{ background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 700, fontSize: "0.75rem" }}
+                      className="flex-1 py-2 rounded-lg transition-all disabled:opacity-50 hover:opacity-80"
+                    >
+                      +{preset >= 1000000 ? `${(preset / 1000000).toFixed(0)}M` : preset}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Confirm / Cancel */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCustomSubmit}
+                    disabled={adding || !customAmount}
+                    className="flex-1 rounded-xl py-2.5 font-bold text-sm transition-all disabled:opacity-50"
+                    style={{ background: "white", color: "#1a2fb8" }}
+                  >
+                    {adding ? "Adding..." : `Add ${CRYPTO_CONFIGS[selectedCrypto].symbol}`}
+                  </button>
+                  <button
+                    onClick={() => { setShowCustomInput(false); setCustomAmount(""); setShowCryptoSelector(false); }}
+                    className="w-10 rounded-xl font-bold text-base transition-all hover:opacity-80"
+                    style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <button
@@ -235,7 +333,7 @@ export default function WalletCard() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#1a2fb8">
                   <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
-                Add Test ETH (Faucet)
+                Add Test Crypto (Faucet)
               </>
             )}
           </button>

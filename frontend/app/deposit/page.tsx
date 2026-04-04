@@ -1,12 +1,28 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import Tooltip from "@/components/Tooltip";
 import { createClient } from "@/utils/supabase/client";
 import { depositToPool, getPoolStats, getUserTotalDeposited } from "@/services/poolService";
 import { getWalletInfo, simulateTransaction } from "@/services/walletService";
 import { getEthPriceINR, formatINR, ethToINR, inrToETH } from "@/utils/getEthPrice";
+import { 
+  CryptoSymbol, 
+  CRYPTO_CONFIGS, 
+  RISK_LABELS, 
+  RISK_COLORS,
+  getStepForCrypto,
+  formatCryptoAmount 
+} from "@/utils/cryptoConfig";
+import { 
+  fetchCryptoPrices, 
+  getCryptoPrice, 
+  cryptoToINR,
+  inrToCrypto 
+} from "@/utils/cryptoPriceService";
+import { cryptoToETH } from "@/utils/cryptoConverter";
 
 export default function DepositPage() {
   const router = useRouter();
@@ -22,6 +38,26 @@ export default function DepositPage() {
   const [userDeposited, setUserDeposited] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
   const [ethPrice, setEthPrice] = useState(0);
+
+  // Multi-crypto state
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoSymbol>('ETH');
+  const [cryptoPrices, setCryptoPrices] = useState<Record<CryptoSymbol, number>>({} as any);
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [lastPriceUpdate, setLastPriceUpdate] = useState(0);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (success) {
+      timer = setTimeout(() => {
+        setSuccess(false);
+        setTxStatus("idle");
+      }, 5000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [success]);
 
   useEffect(() => {
     const load = async () => {
@@ -44,21 +80,55 @@ export default function DepositPage() {
     load();
   }, []);
 
+  // Load crypto prices
+  useEffect(() => {
+    const loadPrices = async () => {
+      setPricesLoading(true);
+      try {
+        const result = await fetchCryptoPrices();
+        setCryptoPrices(result.prices);
+        setLastPriceUpdate(Date.now());
+      } catch (err) {
+        console.error('Price fetch error:', err);
+      }
+      setPricesLoading(false);
+    };
+    loadPrices();
+  }, []);
+
+  // Get current crypto price
+  const currentPrice = useMemo(() => {
+    return getCryptoPrice(selectedCrypto, cryptoPrices);
+  }, [cryptoPrices, selectedCrypto]);
+
+  // Calculate INR value
+  const depositINR = useMemo(() => {
+    const amt = parseFloat(amount) || 0;
+    return cryptoToINR(amt, selectedCrypto, cryptoPrices);
+  }, [amount, selectedCrypto, cryptoPrices]);
+
+  // Calculate max deposit in selected crypto
+  const maxDepositCrypto = useMemo(() => {
+    if (currentPrice === 0) return 0;
+    const walletINR = ethToINR(walletBalance, ethPrice);
+    return inrToCrypto(walletINR, selectedCrypto, cryptoPrices);
+  }, [walletBalance, ethPrice, selectedCrypto, cryptoPrices, currentPrice]);
+
   const handleDeposit = async () => {
     setError("");
     setSuccess(false);
 
-    const depositAmountINR = parseFloat(amount);
-    if (!amount || depositAmountINR <= 0) {
+    const depositAmountCrypto = parseFloat(amount);
+    if (!amount || depositAmountCrypto <= 0) {
       setError("Enter a valid deposit amount.");
       return;
     }
 
-    // Convert INR to ETH
-    const depositAmountETH = inrToETH(depositAmountINR, ethPrice);
+    // Convert crypto to ETH for backend
+    const depositAmountETH = cryptoToETH(depositAmountCrypto, selectedCrypto, cryptoPrices, ethPrice);
     const walletBalanceINR = ethToINR(walletBalance, ethPrice);
 
-    if (depositAmountINR > walletBalanceINR) {
+    if (depositINR > walletBalanceINR) {
       setError(`Insufficient wallet balance. Available: ${formatINR(walletBalanceINR)}`);
       return;
     }
@@ -87,11 +157,6 @@ export default function DepositPage() {
       setUserDeposited(deposited);
       const wallet = await getWalletInfo(user.id);
       setWalletBalance(wallet.balance);
-
-      setTimeout(() => {
-        setSuccess(false);
-        setTxStatus("idle");
-      }, 5000);
     } catch (err: unknown) {
       setTxStatus("idle");
       setError(err instanceof Error ? err.message : "Deposit failed.");
@@ -100,8 +165,7 @@ export default function DepositPage() {
   };
 
   const handleMaxDeposit = () => {
-    const maxINR = ethToINR(walletBalance, ethPrice);
-    setAmount(Math.floor(maxINR).toString());
+    setAmount(formatCryptoAmount(maxDepositCrypto, selectedCrypto));
   };
 
   const walletBalanceINR = ethToINR(walletBalance, ethPrice);
@@ -110,7 +174,12 @@ export default function DepositPage() {
   const availableLiquidityINR = poolLiquidityINR - poolBorrowedINR;
   const userDepositedINR = ethToINR(userDeposited, ethPrice);
 
-  const availableLiquidity = poolStats.total_liquidity - poolStats.total_borrowed;
+  // Check if deposit is valid
+  const isDepositValid = useMemo(() => {
+    if (!amount || parseFloat(amount) <= 0) return false;
+    if (pricesLoading || currentPrice === 0) return false;
+    return depositINR <= walletBalanceINR;
+  }, [amount, depositINR, walletBalanceINR, pricesLoading, currentPrice]);
 
   return (
     <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20">
@@ -137,31 +206,57 @@ export default function DepositPage() {
             <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col gap-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Deposit Amount (₹)</label>
+                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Deposit Amount</label>
                   <button
                     onClick={handleMaxDeposit}
-                    className="text-xs font-bold text-[#1a2fb8] hover:underline"
+                    className="text-xs font-bold text-[#1a2fb8] dark:text-blue-400 hover:underline"
+                    disabled={pricesLoading || currentPrice === 0}
                   >
-                    Max: {formatINR(walletBalanceINR)}
+                    Max: {formatCryptoAmount(maxDepositCrypto, selectedCrypto)} {selectedCrypto}
                   </button>
                 </div>
+                
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Crypto Dropdown */}
+                  <div className="relative">
+                    <select
+                      value={selectedCrypto}
+                      onChange={(e) => setSelectedCrypto(e.target.value as CryptoSymbol)}
+                      className="appearance-none bg-[#f9fafb] dark:bg-gray-700 border border-[#e5e9f0] dark:border-gray-600 rounded-xl px-4 py-3 pr-10 text-base font-bold text-[#374151] dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      {Object.keys(CRYPTO_CONFIGS).map((symbol) => (
+                        <option key={symbol} value={symbol}>
+                          {symbol}
+                        </option>
+                      ))}
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="#6b7280">
+                      <path d="M7 10l5 5 5-5z" />
+                    </svg>
+                  </div>
+                  
+                  {/* Risk Badge */}
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${RISK_COLORS[CRYPTO_CONFIGS[selectedCrypto].risk]}`}>
+                    {RISK_LABELS[CRYPTO_CONFIGS[selectedCrypto].risk]}
+                  </span>
+                </div>
+
                 <div className="flex items-center bg-[#f9fafb] dark:bg-gray-700 rounded-2xl px-4 py-4 border border-[#e5e9f0] dark:border-gray-700 gap-3">
-                  <span className="text-xl font-bold text-[#6b7280] dark:text-gray-400">₹</span>
                   <input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
-                    step="1000"
-                    className="flex-1 outline-none text-xl font-bold text-[#374151] placeholder-[#d1d5db] bg-transparent"
+                    step={getStepForCrypto(selectedCrypto)}
+                    className="flex-1 outline-none text-xl font-bold text-[#374151] dark:text-white placeholder-[#d1d5db] bg-transparent"
                   />
-                  <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-[#eef2ff] dark:bg-blue-900 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" /></svg>
                   </div>
                 </div>
                 {amount && parseFloat(amount) > 0 && (
                   <p className="text-xs text-[#6b7280] dark:text-gray-400 mt-2">
-                    ≈ {inrToETH(parseFloat(amount), ethPrice).toFixed(6)} ETH
+                    ≈ {formatINR(depositINR)}
                   </p>
                 )}
               </div>
@@ -191,7 +286,7 @@ export default function DepositPage() {
 
             <button
               onClick={handleDeposit}
-              disabled={loading || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > walletBalanceINR}
+              disabled={loading || !isDepositValid}
               className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {txStatus === "pending" ? (
@@ -220,11 +315,13 @@ export default function DepositPage() {
                   { label: "Total Borrowed", value: formatINR(poolBorrowedINR) },
                   { label: "Available Liquidity", value: formatINR(availableLiquidityINR) },
                   { label: "Your Total Deposited", value: formatINR(userDepositedINR) },
+                  { label: "Daily Rate", value: "0.019%", highlight: true },
+                  { label: "Expected Yearly Earning", value: depositINR > 0 ? formatINR(depositINR * 0.07) : formatINR(userDepositedINR * 0.07), highlight: true },
                   { label: "Exchange Rate", value: `1 ETH = ${formatINR(ethPrice)}` },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
                     <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
-                    <span className="text-sm font-bold text-[#111827] dark:text-white">{row.value}</span>
+                    <span className={`text-sm font-bold ${row.highlight ? 'text-green-600' : 'text-[#111827] dark:text-white'}`}>{row.value}</span>
                   </div>
                 ))}
               </div>

@@ -10,9 +10,13 @@
  */
 
 import { createClient } from "@/utils/supabase/client";
-import { getCreditTierKey, getMaxLTV, getMaxLTVFromTier } from "@/utils/creditTier";
-
-export { getCreditTierKey as getCreditTier, getMaxLTV, getMaxLTVFromTier };
+import { 
+  calculateCreditScore, 
+  gatherUserCreditData,
+  getCachedScore,
+  setCachedScore,
+  type ScoreBreakdown 
+} from "./creditScoreService";
 
 const supabase = createClient();
 
@@ -24,8 +28,19 @@ export interface ReputationData {
   total_borrowed_amount: number;
 }
 
-// LTV tiers — delegates to creditTier utility
-// (kept for backward compatibility; use getMaxLTV from @/utils/creditTier directly)
+// LTV tiers based on credit score — maps to getCreditTier() in Solidity
+export function getMaxLTV(creditScore: number): number {
+  if (creditScore > 800) return 0.85;  // 85%
+  if (creditScore >= 600) return 0.75; // 75%
+  return 0.60;                          // 60%
+}
+
+export function getCreditTier(creditScore: number): string {
+  if (creditScore >= 900) return "Excellent";
+  if (creditScore >= 700) return "Good";
+  if (creditScore >= 500) return "Fair";
+  return "Poor";
+}
 
 // Ensure reputation row exists for user (called on signup / first action)
 export async function ensureReputation(userId: string): Promise<void> {
@@ -121,4 +136,51 @@ export async function recordDefault(userId: string): Promise<void> {
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+}
+
+// ============================================================================
+// ADVANCED CREDIT SCORING INTEGRATION
+// ============================================================================
+
+/**
+ * Recalculate and update credit score using advanced multi-factor model
+ * Call this on trigger events (loan, repay, deposit, default)
+ */
+export async function recalculateCreditScore(userId: string): Promise<number> {
+  // Check cache first
+  const cached = getCachedScore(userId);
+  if (cached !== null) {
+    return cached;
+  }
+  
+  // Gather data
+  const userData = await gatherUserCreditData(userId);
+  
+  // Calculate new score
+  const result = calculateCreditScore(userData);
+  
+  // Update in database
+  const { error } = await supabase
+    .from("reputation")
+    .update({ 
+      credit_score: result.score,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  
+  if (error) throw new Error(error.message);
+  
+  // Cache the result
+  setCachedScore(userId, result.score);
+  
+  return result.score;
+}
+
+/**
+ * Get score breakdown for display in UI
+ */
+export async function getScoreBreakdown(userId: string): Promise<ScoreBreakdown> {
+  const userData = await gatherUserCreditData(userId);
+  const result = calculateCreditScore(userData);
+  return result.breakdown;
 }

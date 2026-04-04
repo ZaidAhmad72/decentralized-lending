@@ -1,0 +1,22 @@
+{
+  "name": "defi-lending-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for DeFi lending protocol on Base",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:sepolia": "hardhat run deploy.js --network baseSepolia",
+    "deploy:base": "hardhat run deploy.js --network base",
+    "verify": "hardhat verify --network",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0",
+    "dotenv": "^16.3.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "ethers": "^6.9.0"
+  }
+}

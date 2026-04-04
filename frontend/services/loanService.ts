@@ -9,7 +9,7 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { poolBorrow, poolRepay } from "./poolService";
-import { recordLoan, recordRepayment, recordDefault, getReputation, getMaxLTV } from "./reputationService";
+import { recordLoan, recordRepayment, recordDefault, getReputation, getMaxLTV, recalculateCreditScore } from "./reputationService";
 import { simulateTransaction } from "./walletService";
 
 const supabase = createClient();
@@ -99,6 +99,9 @@ export async function borrowFromPool(
   // 8. Update reputation: recordLoan()
   await recordLoan(borrowerId, amount);
 
+  // 8.1. Recalculate credit score
+  await recalculateCreditScore(borrowerId);
+
   // 9. Log transaction
   await supabase.from("transactions").insert([{
     user_id: borrowerId,
@@ -156,7 +159,10 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
   // 7. Mark loan repaid
   const { error: loanUpdateError } = await supabase
     .from("loans")
-    .update({ status: "repaid" })
+    .update({ 
+      status: "repaid",
+      repaid_at: new Date().toISOString(),
+    })
     .eq("id", loanId);
   if (loanUpdateError) throw new Error(loanUpdateError.message);
 
@@ -165,6 +171,9 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
 
   // 9. Update reputation: recordRepayment()
   await recordRepayment(borrowerId, onTime);
+
+  // 9.1. Recalculate credit score
+  await recalculateCreditScore(borrowerId);
 
   // 10. Log transaction
   await supabase.from("transactions").insert([{
@@ -200,6 +209,9 @@ export async function checkAndMarkDefaulted(borrowerId: string): Promise<void> {
 
     // Reputation: recordDefault() — score -= 75
     await recordDefault(borrowerId);
+
+    // Recalculate credit score
+    await recalculateCreditScore(borrowerId);
   }
 }
 

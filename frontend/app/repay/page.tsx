@@ -95,7 +95,7 @@ export default function RepayPage() {
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
           <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">Repay Loan</h1>
-          <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base">Settle your active loan and boost your reputation score.</p>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base">Settle your active loan and improve your credit score.</p>
         </div>
 
         {!loan ? (
@@ -149,7 +149,7 @@ export default function RepayPage() {
               {repaid ? (
                 <div className="w-full bg-[#4ade80] text-[#14532d] rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="#14532d"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
-                  Repayment Successful — +10 Reputation
+                  Repayment Successful — Credit Score Updated
                 </div>
               ) : (
                 <button
@@ -163,18 +163,6 @@ export default function RepayPage() {
             </div>
 
             <div className="w-full lg:flex-1 flex flex-col gap-5">
-              <div className="bg-[#f0fdf4] rounded-3xl p-6 border border-[#bbf7d0] flex items-start gap-4">
-                <div className="w-10 h-10 bg-[#4ade80] rounded-xl flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#14532d"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[#15803d] mb-1">Reputation Boost on Repayment</p>
-                  <p className="text-xs text-[#16a34a] leading-relaxed">
-                    Repaying on time earns you +10 reputation points and improves your borrowing limit for future loans.
-                  </p>
-                </div>
-              </div>
-
               <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700">
                 <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Repayment Breakdown</p>
                 <div className="flex flex-col gap-3">
@@ -182,13 +170,25 @@ export default function RepayPage() {
                     { label: "You're paying", value: formatINR(totalDueINR) },
                     { label: "Principal cleared", value: formatINR(loanAmountINR) },
                     { label: "Interest paid", value: formatINR(interestINR) },
-                    { label: "Reputation gain", value: "+10 PTS" },
+                    { label: "Credit score impact", value: daysLeft > 0 ? "Positive ✓" : "Minor ✓", tooltip: true },
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
-                      <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
-                      <span className="text-sm font-bold text-[#111827] dark:text-white">{row.value}</span>
+                      <span className="text-sm text-[#6b7280] dark:text-gray-400 flex items-center gap-1">
+                        {row.label}
+                        {row.tooltip && (
+                          <span className="text-xs text-[#9ca3af] dark:text-gray-500" title="Your credit score is calculated using multiple factors including repayment history, wallet age, liquidity, and activity">ⓘ</span>
+                        )}
+                      </span>
+                      <span className={`text-sm font-bold ${row.label === "Credit score impact" ? "text-[#16a34a]" : "text-[#111827] dark:text-white"}`}>{row.value}</span>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-[#e5e9f0] dark:border-gray-700">
+                  <p className="text-xs text-[#6b7280] dark:text-gray-400 leading-relaxed">
+                    {daysLeft > 0 
+                      ? "On-time repayment positively impacts your credit score through improved repayment reliability (30% weight) and activity metrics."
+                      : "Late repayment still improves your score but with reduced impact on repayment reliability factor."}
+                  </p>
                 </div>
               </div>
             </div>
