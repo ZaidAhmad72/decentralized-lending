@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -92,10 +92,10 @@ export default function RequestLoanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20">
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0]">
+          <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0] dark:border-gray-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#374151"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
           </button>
           <span className="text-[#1a2fb8] font-bold text-lg tracking-tight">Vault</span>
@@ -104,38 +104,38 @@ export default function RequestLoanPage() {
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] mb-2">Borrow from Pool</h1>
-          <p className="text-[#6b7280] text-sm lg:text-base leading-relaxed">
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">Borrow from Pool</h1>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base leading-relaxed">
             Available: {formatINR(availableLiquidityINR)} · Your limit: {formatINR(maxBorrowINR)}
           </p>
         </div>
 
         {/* Credit Score Banner */}
-        <div className="bg-white rounded-2xl px-5 py-4 mb-5 shadow-sm border border-[#e5e9f0] flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl px-5 py-4 mb-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#eef2ff] rounded-xl flex items-center justify-center">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
             </div>
             <div>
-              <p className="text-xs text-[#6b7280] font-semibold">Credit Score</p>
-              <p className="text-xl font-black text-[#111827]">{creditScore} <span className="text-sm font-semibold text-[#6b7280]">/ 1000</span></p>
+              <p className="text-xs text-[#6b7280] dark:text-gray-400 font-semibold">Credit Score</p>
+              <p className="text-xl font-black text-[#111827] dark:text-white">{creditScore} <span className="text-sm font-semibold text-[#6b7280] dark:text-gray-400">/ 1000</span></p>
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className={`text-xs font-bold px-3 py-1 rounded-full ${tierColor[creditTier] ?? "bg-gray-100 text-gray-600"}`}>
               {creditTier}
             </span>
-            <span className="text-xs text-[#6b7280]">Max LTV: {(maxLTV * 100).toFixed(0)}%</span>
+            <span className="text-xs text-[#6b7280] dark:text-gray-400">Max LTV: {(maxLTV * 100).toFixed(0)}%</span>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0] flex flex-col gap-5">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col gap-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Loan Amount (₹)</label>
+                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Loan Amount (₹)</label>
                   <button
                     onClick={() => setAmount(Math.floor(maxBorrowINR).toString())}
                     className="text-xs font-bold text-[#1a2fb8] hover:underline"
@@ -143,8 +143,8 @@ export default function RequestLoanPage() {
                     Max: {formatINR(maxBorrowINR)}
                   </button>
                 </div>
-                <div className="flex items-center bg-[#f9fafb] rounded-2xl px-4 py-4 border border-[#e5e9f0] gap-3">
-                  <span className="text-xl font-bold text-[#6b7280]">₹</span>
+                <div className="flex items-center bg-[#f9fafb] dark:bg-gray-700 rounded-2xl px-4 py-4 border border-[#e5e9f0] dark:border-gray-700 gap-3">
+                  <span className="text-xl font-bold text-[#6b7280] dark:text-gray-400">₹</span>
                   <input
                     type="number"
                     value={amount}
@@ -158,13 +158,13 @@ export default function RequestLoanPage() {
                   </div>
                 </div>
                 {amount && parseFloat(amount) > 0 && (
-                  <p className="text-xs text-[#6b7280] mt-2">≈ {amountETH.toFixed(6)} ETH</p>
+                  <p className="text-xs text-[#6b7280] dark:text-gray-400 mt-2">≈ {amountETH.toFixed(6)} ETH</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">Repayment Term</label>
-                <div className="flex items-center bg-[#f9fafb] rounded-2xl px-4 py-4 border border-[#e5e9f0]">
+                <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">Repayment Term</label>
+                <div className="flex items-center bg-[#f9fafb] dark:bg-gray-700 rounded-2xl px-4 py-4 border border-[#e5e9f0] dark:border-gray-700">
                   <select
                     value={durationLabel}
                     onChange={(e) => setDurationLabel(e.target.value)}
@@ -202,8 +202,8 @@ export default function RequestLoanPage() {
           </div>
 
           <div className="w-full lg:flex-1 flex flex-col gap-5">
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
-              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Loan Summary</p>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700">
+              <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Loan Summary</p>
               <div className="flex flex-col gap-3">
                 {[
                   { label: "Requested Amount", value: amount ? formatINR(amountINR) : "—" },
@@ -213,9 +213,9 @@ export default function RequestLoanPage() {
                   { label: "Est. Total Repayment", value: amount ? formatINR(amountINR + parseFloat(estInterest)) : "—" },
                   { label: "Exchange Rate", value: `1 ETH = ${formatINR(ethPrice)}` },
                 ].map((row) => (
-                  <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">
-                    <span className="text-sm text-[#6b7280]">{row.label}</span>
-                    <span className="text-sm font-bold text-[#111827]">{row.value}</span>
+                  <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
+                    <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
+                    <span className="text-sm font-bold text-[#111827] dark:text-white">{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -230,7 +230,7 @@ export default function RequestLoanPage() {
                   { tier: "Good", range: "600–800", ltv: "75%", active: creditScore >= 600 && creditScore <= 800 },
                   { tier: "Fair / Poor", range: "< 600", ltv: "60%", active: creditScore < 600 },
                 ].map((t) => (
-                  <div key={t.tier} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-semibold ${t.active ? "bg-[#1a2fb8] text-white" : "text-[#6b7280]"}`}>
+                  <div key={t.tier} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-semibold ${t.active ? "bg-[#1a2fb8] text-white" : "text-[#6b7280] dark:text-gray-400"}`}>
                     <span>{t.tier} ({t.range})</span>
                     <span>Max LTV {t.ltv}</span>
                   </div>
@@ -244,3 +244,4 @@ export default function RequestLoanPage() {
     </div>
   );
 }
+

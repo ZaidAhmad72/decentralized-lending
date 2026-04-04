@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -72,13 +72,13 @@ export default function DashboardPage() {
   const activeLoanINR = activeLoan ? ethToINR(activeLoan.amount, ethPrice) : 0;
 
   if (loading) return (
-    <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
-      <p className="text-[#6b7280]">Loading...</p>
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 flex items-center justify-center transition-colors">
+      <p className="text-[#6b7280] dark:text-gray-400">Loading...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20 transition-colors">
 
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
@@ -97,8 +97,8 @@ export default function DashboardPage() {
 
         {/* Welcome */}
         <div className="mb-6">
-          <p className="text-[#6b7280] text-sm">Welcome back,</p>
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827]">{profile.name || "—"}</h1>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm">Welcome back,</p>
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white">{profile.name || "—"}</h1>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 mb-6">
@@ -106,15 +106,15 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
               {/* Pool Liquidity */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
                   </div>
-                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Pool Liquidity</span>
+                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Pool Liquidity</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827]">
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">
                     {formatINR(poolLiquidityINR)}
                   </p>
                   <p className="text-sm text-[#16a34a] font-semibold mt-1">
@@ -124,15 +124,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Your Deposits */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" /></svg>
                   </div>
-                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Your Deposits</span>
+                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Your Deposits</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827]">
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">
                     {formatINR(userDepositedINR)}
                   </p>
                   <button onClick={() => router.push("/deposit")} className="text-xs text-[#1a2fb8] font-bold mt-1">Deposit more →</button>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Credit Score */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700">
                 <div className="flex flex-col items-center mb-3">
                   <div className="relative w-36 h-20 overflow-hidden mb-2">
                     <svg viewBox="0 0 144 80" className="w-full h-full">
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                      <span className="text-3xl font-black text-[#111827]">{creditScore}</span>
+                      <span className="text-3xl font-black text-[#111827] dark:text-white">{creditScore}</span>
                     </div>
                   </div>
                   <span className={`text-xs font-bold px-3 py-1 rounded-full ${
@@ -163,23 +163,23 @@ export default function DashboardPage() {
                     {creditTier.toUpperCase()}
                   </span>
                 </div>
-                <p className="text-center text-xs text-[#6b7280]">Credit Score · LTV {(maxLTV * 100).toFixed(0)}%</p>
+                <p className="text-center text-xs text-[#6b7280] dark:text-gray-400">Credit Score · LTV {(maxLTV * 100).toFixed(0)}%</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
               {/* Active Loan */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" /></svg>
                   </div>
-                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Active Loan</span>
+                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Active Loan</span>
                 </div>
                 {activeLoan ? (
                   <div>
-                    <p className="text-3xl font-black text-[#111827]">
+                    <p className="text-3xl font-black text-[#111827] dark:text-white">
                       {formatINR(activeLoanINR)}
                     </p>
                     <p className="text-sm text-[#16a34a] font-semibold mt-1">Due in {daysLeft} Days</p>
@@ -193,15 +193,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Loan Status */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
                   </div>
-                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Status</span>
+                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Status</span>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-[#111827] capitalize">
+                  <p className="text-2xl font-black text-[#111827] dark:text-white capitalize">
                     {activeLoan ? activeLoan.status : "—"}
                   </p>
                   {activeLoan && (
@@ -216,7 +216,7 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="flex flex-col gap-3 lg:w-72 lg:flex-shrink-0">
-            <h2 className="text-xl font-black text-[#111827] hidden lg:block">Quick Actions</h2>
+            <h2 className="text-xl font-black text-[#111827] dark:text-white hidden lg:block">Quick Actions</h2>
 
             <button
               onClick={() => router.push("/deposit")}
@@ -259,8 +259,8 @@ export default function DashboardPage() {
             <WalletCard />
 
             {/* Desktop: quick stats panel */}
-            <div className="hidden lg:block bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mt-1">
-              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Pool & Your Stats</p>
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 mt-1">
+              <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Pool & Your Stats</p>
               <div className="flex flex-col gap-3">
                 {[
                   { label: "Credit Score", value: `${creditScore} / 1000` },
@@ -271,8 +271,8 @@ export default function DashboardPage() {
                   { label: "Days Remaining", value: activeLoan ? `${daysLeft}d` : "—" },
                 ].map((s) => (
                   <div key={s.label} className="flex justify-between items-center">
-                    <span className="text-sm text-[#6b7280]">{s.label}</span>
-                    <span className="text-sm font-bold text-[#111827] capitalize">{s.value}</span>
+                    <span className="text-sm text-[#6b7280] dark:text-gray-400">{s.label}</span>
+                    <span className="text-sm font-bold text-[#111827] dark:text-white capitalize">{s.value}</span>
                   </div>
                 ))}
               </div>
@@ -293,3 +293,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

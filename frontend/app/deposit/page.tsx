@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -113,10 +113,10 @@ export default function DepositPage() {
   const availableLiquidity = poolStats.total_liquidity - poolStats.total_borrowed;
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20">
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0]">
+          <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0] dark:border-gray-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#374151"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
           </button>
           <span className="text-[#1a2fb8] font-bold text-lg tracking-tight">Vault</span>
@@ -125,8 +125,8 @@ export default function DepositPage() {
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] mb-2">Deposit to Pool</h1>
-          <p className="text-[#6b7280] text-sm lg:text-base leading-relaxed">
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">Deposit to Pool</h1>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base leading-relaxed">
             Add liquidity to the lending pool and enable borrowers to access capital.
           </p>
         </div>
@@ -134,10 +134,10 @@ export default function DepositPage() {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0] flex flex-col gap-5">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col gap-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase">Deposit Amount (₹)</label>
+                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Deposit Amount (₹)</label>
                   <button
                     onClick={handleMaxDeposit}
                     className="text-xs font-bold text-[#1a2fb8] hover:underline"
@@ -145,8 +145,8 @@ export default function DepositPage() {
                     Max: {formatINR(walletBalanceINR)}
                   </button>
                 </div>
-                <div className="flex items-center bg-[#f9fafb] rounded-2xl px-4 py-4 border border-[#e5e9f0] gap-3">
-                  <span className="text-xl font-bold text-[#6b7280]">₹</span>
+                <div className="flex items-center bg-[#f9fafb] dark:bg-gray-700 rounded-2xl px-4 py-4 border border-[#e5e9f0] dark:border-gray-700 gap-3">
+                  <span className="text-xl font-bold text-[#6b7280] dark:text-gray-400">₹</span>
                   <input
                     type="number"
                     value={amount}
@@ -160,7 +160,7 @@ export default function DepositPage() {
                   </div>
                 </div>
                 {amount && parseFloat(amount) > 0 && (
-                  <p className="text-xs text-[#6b7280] mt-2">
+                  <p className="text-xs text-[#6b7280] dark:text-gray-400 mt-2">
                     ≈ {inrToETH(parseFloat(amount), ethPrice).toFixed(6)} ETH
                   </p>
                 )}
@@ -212,8 +212,8 @@ export default function DepositPage() {
           </div>
 
           <div className="w-full lg:flex-1 flex flex-col gap-5">
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
-              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Pool Statistics</p>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700">
+              <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Pool Statistics</p>
               <div className="flex flex-col gap-3">
                 {[
                   { label: "Total Liquidity", value: formatINR(poolLiquidityINR) },
@@ -222,9 +222,9 @@ export default function DepositPage() {
                   { label: "Your Total Deposited", value: formatINR(userDepositedINR) },
                   { label: "Exchange Rate", value: `1 ETH = ${formatINR(ethPrice)}` },
                 ].map((row) => (
-                  <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">
-                    <span className="text-sm text-[#6b7280]">{row.label}</span>
-                    <span className="text-sm font-bold text-[#111827]">{row.value}</span>
+                  <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
+                    <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
+                    <span className="text-sm font-bold text-[#111827] dark:text-white">{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -248,3 +248,4 @@ export default function DepositPage() {
     </div>
   );
 }
+
