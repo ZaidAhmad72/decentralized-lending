@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/middleware";
 
-const PROTECTED_ROUTES = ["/dashboard", "/request-loan", "/loans", "/repay"];
+const PROTECTED_ROUTES = ["/dashboard", "/request-loan", "/loans", "/repay", "/learn"];
 
 export async function middleware(request: NextRequest) {
   const { supabase, supabaseResponse } = createClient(request);
