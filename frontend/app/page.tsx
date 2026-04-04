@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("error") ? "Login link expired or invalid. Please try again." : ""
+  );
   const [successMsg, setSuccessMsg] = useState("");
 
   const otpRefs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
@@ -25,12 +28,18 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
     setLoading(false);
     if (otpError) {
       setError(otpError.message);
     } else {
-      setSuccessMsg(`OTP sent to ${email}`);
+      setSuccessMsg(`Check your email — we sent a login link to ${email}`);
       setOtpSent(true);
     }
   };
@@ -147,7 +156,7 @@ export default function LoginPage() {
           </button>
         )}
 
-        {/* OTP Section */}
+        {/* Magic link sent / OTP entry state */}
         {otpSent && (
           <>
             <div className="mb-6">
@@ -160,7 +169,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="text-xs font-bold text-[#1a2fb8] tracking-widest uppercase disabled:opacity-50"
                 >
-                  Resend Code
+                  {loading ? "Sending..." : "Resend Code"}
                 </button>
               </div>
               <div className="flex gap-2">
