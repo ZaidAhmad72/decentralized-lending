@@ -8,3 +8,42 @@ body {
   background-color: #f0f4f8;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* ── Google Translate banner suppression ─────────────────────────────────── */
+
+/* Hide the top banner iframe */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+/* Neutralise the body offset Google injects via inline style */
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+/* Hide tooltip and highlight artifacts */
+.goog-tooltip,
+.goog-tooltip:hover,
+.goog-text-highlight {
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Hide the attribution logo and gadget text */
+.goog-logo-link,
+.goog-te-gadget span,
+.goog-te-gadget a {
+  display: none !important;
+}
+
+.goog-te-gadget {
+  font-size: 0px !important;
+}
+
+/* Hide the hidden widget anchor we inject */
+#google_translate_element {
+  display: none !important;
+}
