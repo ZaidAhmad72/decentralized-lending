@@ -58,7 +58,7 @@ export default function AuthPage() {
             email,
             name: name.trim(),
             age: Number(age),
-            trust_score: 50,
+            reputation_score: 0,
           }]);
           if (profileError) { setError(profileError.message); setLoading(false); return; }
         }
