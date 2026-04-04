@@ -44,20 +44,19 @@ const tabs = [
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
-
-  const isActive = (tab: (typeof tabs)[0]) =>
-    pathname === tab.path;
+  const isActive = (tab: (typeof tabs)[0]) => pathname === tab.path;
 
   return (
     <>
-      {/* Desktop top navbar */}
-      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e9f0] shadow-sm items-center justify-between px-8 h-16">
+      {/* ── Desktop top navbar (lg and above) ── */}
+      <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e9f0] shadow-sm items-center justify-between px-10 h-16">
         <span
-          className="text-[#1a2fb8] font-black text-xl tracking-tight cursor-pointer"
+          className="text-[#1a2fb8] font-black text-xl tracking-tight cursor-pointer select-none"
           onClick={() => router.push("/dashboard")}
         >
           Vault
         </span>
+
         <div className="flex items-center gap-1">
           {tabs.map((tab) => (
             <button
@@ -74,13 +73,14 @@ export default function Navbar() {
             </button>
           ))}
         </div>
-        <div className="bg-[#1a2fb8] text-white text-xs font-bold px-3 py-1.5 rounded-full tracking-wide">
+
+        <div className="bg-[#1a2fb8] text-white text-xs font-bold px-4 py-2 rounded-full tracking-wide">
           980 SCORE
         </div>
       </nav>
 
-      {/* Mobile bottom navbar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50">
+      {/* ── Mobile bottom navbar (below lg) ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50 safe-area-pb">
         {tabs.map((tab) => (
           <button
             key={tab.label}
