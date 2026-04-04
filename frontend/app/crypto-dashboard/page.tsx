@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { COINS, type CoinMeta, formatUSD, formatINR } from "@/services/cryptoApi";
 import { useCryptoData } from "@/hooks/useCryptoData";
 import CryptoCard from "@/components/crypto/CryptoCard";
@@ -60,12 +59,6 @@ export default function CryptoDashboardPage() {
             <p className="text-[#6b7280] dark:text-gray-400">Live prices in USD & INR · Auto-refreshes every 60s</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="text-sm font-semibold text-[#6b7280] dark:text-gray-400 hover:text-[#1a2fb8] dark:hover:text-blue-400 transition-colors"
-            >
-              ← Back to Dashboard
-            </Link>
             <button
               onClick={refresh}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-[#e5e9f0] dark:border-gray-700 text-sm font-semibold text-[#374151] dark:text-gray-300 hover:bg-[#f3f4f6] dark:hover:bg-gray-700 transition-colors shadow-sm"
