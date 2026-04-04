@@ -1,12 +1,15 @@
 import { createSmartAccountClient, BiconomySmartAccountV2, PaymasterMode } from "@biconomy/account";
 import { ethers } from "ethers";
 
-const BUNDLER_URL = process.env.NEXT_PUBLIC_BICONOMY_BUNDLER_URL!;
-const PAYMASTER_KEY = process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_KEY!;
+const BUNDLER_URL = process.env.NEXT_PUBLIC_BICONOMY_BUNDLER_URL;
+const PAYMASTER_KEY = process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_KEY;
 const RPC_URL = process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC || "https://rpc-amoy.polygon.technology";
 
 // Polygon Amoy chain ID
 const CHAIN_ID = 80002;
+
+// Check if wallet features are enabled
+const WALLET_ENABLED = Boolean(BUNDLER_URL && PAYMASTER_KEY);
 
 /**
  * Derives a deterministic private key from the Supabase user ID.
@@ -22,14 +25,18 @@ function derivePrivateKey(userId: string): string {
  * Creates or retrieves the ERC-4337 smart wallet for a given Supabase user ID.
  */
 export async function createSmartWallet(userId: string): Promise<BiconomySmartAccountV2> {
+  if (!WALLET_ENABLED) {
+    throw new Error("Wallet features are disabled. Please configure BICONOMY environment variables.");
+  }
+
   const privateKey = derivePrivateKey(userId);
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const signer = new ethers.Wallet(privateKey, provider);
 
   const smartAccount = await createSmartAccountClient({
     signer,
-    bundlerUrl: BUNDLER_URL,
-    biconomyPaymasterApiKey: PAYMASTER_KEY,
+    bundlerUrl: BUNDLER_URL!,
+    biconomyPaymasterApiKey: PAYMASTER_KEY!,
     chainId: CHAIN_ID,
   });
 

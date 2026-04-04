@@ -45,12 +45,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       let address = profile?.wallet_address as string | null;
 
       if (!address) {
-        // Derive and store wallet address
-        address = await getSmartWalletAddress(user.id);
-        await supabase
-          .from("profiles")
-          .update({ wallet_address: address })
-          .eq("id", user.id);
+        try {
+          // Derive and store wallet address (requires Biconomy config)
+          address = await getSmartWalletAddress(user.id);
+          await supabase
+            .from("profiles")
+            .update({ wallet_address: address })
+            .eq("id", user.id);
+        } catch (walletError) {
+          // Wallet features disabled - continue without wallet
+          console.warn("Wallet features disabled:", walletError);
+          setState({ address: null, balance: "0.0000", loading: false, error: null });
+          return;
+        }
       }
 
       const balance = await getWalletBalance(address);
