@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, repayLoan, checkAndMarkDefaulted, type Loan } from "@/services/loanService";
+import { getWalletInfo } from "@/services/walletService";
+import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 
 export default function RepayPage() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function RepayPage() {
   const [repaying, setRepaying] = useState(false);
   const [repaid, setRepaid] = useState(false);
   const [error, setError] = useState("");
+  const [ethPrice, setEthPrice] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -25,6 +29,10 @@ export default function RepayPage() {
       await checkAndMarkDefaulted(user.id);
       const activeLoan = await getUserActiveLoan(user.id);
       setLoan(activeLoan);
+      const price = await getEthPriceINR();
+      setEthPrice(price);
+      const wallet = await getWalletInfo(user.id);
+      setWalletBalance(wallet.balance);
       setLoading(false);
     };
     load();
@@ -32,6 +40,15 @@ export default function RepayPage() {
 
   const handleRepay = async () => {
     if (!loan) return;
+    
+    const totalDueINR = ethToINR(totalDue, ethPrice);
+    const walletBalanceINR = ethToINR(walletBalance, ethPrice);
+    
+    if (totalDueINR > walletBalanceINR) {
+      setError(`Insufficient wallet balance. You need ${formatINR(totalDueINR)} but have ${formatINR(walletBalanceINR)}`);
+      return;
+    }
+    
     setRepaying(true);
     setError("");
     try {
@@ -53,6 +70,10 @@ export default function RepayPage() {
     : 0;
 
   const totalDue = loan ? loan.amount + interest : 0;
+
+  const loanAmountINR = loan ? ethToINR(loan.amount, ethPrice) : 0;
+  const interestINR = ethToINR(interest, ethPrice);
+  const totalDueINR = ethToINR(totalDue, ethPrice);
 
   if (loading) return (
     <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
@@ -100,8 +121,8 @@ export default function RepayPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   {[
-                    { label: "Principal", value: `$${loan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, color: "text-[#111827]" },
-                    { label: "Accrued Interest", value: `+$${interest.toFixed(2)}`, color: "text-[#d97706]" },
+                    { label: "Principal", value: formatINR(loanAmountINR), color: "text-[#111827]" },
+                    { label: "Accrued Interest", value: `+${formatINR(interestINR)}`, color: "text-[#d97706]" },
                     { label: "Daily Rate", value: "0.024%", color: "text-[#374151]" },
                     { label: "Due Date", value: loan.due_date ? new Date(loan.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—", color: "text-[#374151]" },
                   ].map((row) => (
@@ -113,7 +134,7 @@ export default function RepayPage() {
                   <div className="flex justify-between items-center pt-3">
                     <span className="text-base font-bold text-[#111827]">Total Due</span>
                     <span className="text-2xl font-black text-[#111827]">
-                      ${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatINR(totalDueINR)}
                     </span>
                   </div>
                 </div>
@@ -136,7 +157,7 @@ export default function RepayPage() {
                   disabled={repaying}
                   className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 disabled:opacity-70"
                 >
-                  {repaying ? "Processing..." : `Repay $${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                  {repaying ? "Processing..." : `Repay ${formatINR(totalDueINR)}`}
                 </button>
               )}
             </div>
@@ -154,13 +175,13 @@ export default function RepayPage() {
                 </div>
               </div>
 
-              <div className="hidden lg:block bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
                 <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Repayment Breakdown</p>
                 <div className="flex flex-col gap-3">
                   {[
-                    { label: "You're paying", value: `$${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
-                    { label: "Principal cleared", value: `$${loan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
-                    { label: "Interest paid", value: `$${interest.toFixed(2)}` },
+                    { label: "You're paying", value: formatINR(totalDueINR) },
+                    { label: "Principal cleared", value: formatINR(loanAmountINR) },
+                    { label: "Interest paid", value: formatINR(interestINR) },
                     { label: "Reputation gain", value: "+10 PTS" },
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">

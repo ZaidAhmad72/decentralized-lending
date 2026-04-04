@@ -53,12 +53,17 @@ export default function AuthPage() {
           .single();
 
         if (!existing) {
+          // Generate deterministic wallet address from user ID
+          const walletAddress = `0x${user.id.replace(/-/g, '').slice(0, 40)}`;
+          
           const { error: profileError } = await supabase.from("profiles").insert([{
             id: user.id,
             email,
             name: name.trim(),
             age: Number(age),
             reputation_score: 0,
+            wallet_address: walletAddress,
+            wallet_balance: 2.0,
           }]);
           if (profileError) { setError(profileError.message); setLoading(false); return; }
         }

@@ -11,12 +11,14 @@ create table if not exists profiles (
   age int,
   reputation_score float default 0,
   wallet_address text,
+  wallet_balance numeric default 2.0 not null,
   created_at timestamptz default now()
 );
 
 -- Update existing profiles table if it exists
 alter table profiles add column if not exists reputation_score float default 0;
 alter table profiles add column if not exists wallet_address text;
+alter table profiles add column if not exists wallet_balance numeric default 2.0 not null;
 
 -- Drop old trust_score column if it exists (rename to reputation_score)
 do $$ 
@@ -25,6 +27,19 @@ begin
     alter table profiles rename column trust_score to reputation_score;
   end if;
 end $$;
+
+-- Add wallet_balance constraint (cannot be negative)
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'check_wallet_balance_positive'
+  ) then
+    alter table profiles add constraint check_wallet_balance_positive check (wallet_balance >= 0);
+  end if;
+end $$;
+
+-- Update existing users to have 2.0 ETH if they don't have a balance
+update profiles set wallet_balance = 2.0 where wallet_balance is null;
 
 -- RLS for profiles
 alter table profiles enable row level security;

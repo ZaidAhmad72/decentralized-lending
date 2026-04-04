@@ -7,6 +7,8 @@ import WalletCard from "@/components/WalletCard";
 import { createClient } from "@/utils/supabase/client";
 import { getUserActiveLoan, type Loan } from "@/services/loanService";
 import { getPoolStats, getUserTotalDeposited } from "@/services/poolService";
+import { getReputation, getCreditTier, getMaxLTV } from "@/services/reputationService";
+import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,6 +18,10 @@ export default function DashboardPage() {
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
   const [poolStats, setPoolStats] = useState({ total_liquidity: 0, total_borrowed: 0 });
   const [userDeposited, setUserDeposited] = useState(0);
+  const [ethPrice, setEthPrice] = useState(0);
+  const [creditScore, setCreditScore] = useState(500);
+  const [creditTier, setCreditTier] = useState("Good");
+  const [maxLTV, setMaxLTV] = useState(0.75);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,14 +37,21 @@ export default function DashboardPage() {
 
       if (prof) setProfile(prof);
 
-      const loan = await getUserActiveLoan(user.id);
+      const [loan, stats, deposited, price, rep] = await Promise.all([
+        getUserActiveLoan(user.id),
+        getPoolStats(),
+        getUserTotalDeposited(user.id),
+        getEthPriceINR(),
+        getReputation(user.id),
+      ]);
+
       setActiveLoan(loan);
-
-      const stats = await getPoolStats();
       setPoolStats(stats);
-
-      const deposited = await getUserTotalDeposited(user.id);
       setUserDeposited(deposited);
+      setEthPrice(price);
+      setCreditScore(rep.credit_score);
+      setCreditTier(getCreditTier(rep.credit_score));
+      setMaxLTV(getMaxLTV(rep.credit_score));
 
       setLoading(false);
     };
@@ -48,6 +61,12 @@ export default function DashboardPage() {
   const daysLeft = activeLoan?.due_date
     ? Math.max(0, Math.ceil((new Date(activeLoan.due_date).getTime() - Date.now()) / 86400000))
     : 0;
+
+  const poolLiquidityINR = ethToINR(poolStats.total_liquidity, ethPrice);
+  const poolBorrowedINR = ethToINR(poolStats.total_borrowed, ethPrice);
+  const availableLiquidityINR = poolLiquidityINR - poolBorrowedINR;
+  const userDepositedINR = ethToINR(userDeposited, ethPrice);
+  const activeLoanINR = activeLoan ? ethToINR(activeLoan.amount, ethPrice) : 0;
 
   if (loading) return (
     <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
@@ -67,7 +86,7 @@ export default function DashboardPage() {
           <span className="text-[#1a2fb8] font-bold text-lg tracking-tight">Vault</span>
         </div>
         <div className="bg-[#1a2fb8] text-white text-xs font-bold px-3 py-1.5 rounded-full">
-          {profile.reputation_score} SCORE
+          {creditScore} SCORE
         </div>
       </div>
 
@@ -93,10 +112,10 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-3xl font-black text-[#111827]">
-                    ${poolStats.total_liquidity.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    {formatINR(poolLiquidityINR)}
                   </p>
                   <p className="text-sm text-[#16a34a] font-semibold mt-1">
-                    Available: ${(poolStats.total_liquidity - poolStats.total_borrowed).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    Available: {formatINR(availableLiquidityINR)}
                   </p>
                 </div>
               </div>
@@ -111,13 +130,13 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-3xl font-black text-[#111827]">
-                    ${userDeposited.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    {formatINR(userDepositedINR)}
                   </p>
                   <button onClick={() => router.push("/deposit")} className="text-xs text-[#1a2fb8] font-bold mt-1">Deposit more →</button>
                 </div>
               </div>
 
-              {/* Reputation Score */}
+              {/* Credit Score */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
                 <div className="flex flex-col items-center mb-3">
                   <div className="relative w-36 h-20 overflow-hidden mb-2">
@@ -125,18 +144,23 @@ export default function DashboardPage() {
                       <path d="M 12 72 A 60 60 0 0 1 132 72" fill="none" stroke="#e5e9f0" strokeWidth="10" strokeLinecap="round" />
                       <path d="M 12 72 A 60 60 0 0 1 132 72" fill="none" stroke="#15803d" strokeWidth="10" strokeLinecap="round"
                         strokeDasharray="188.5"
-                        strokeDashoffset={188.5 - (188.5 * Math.min(profile.reputation_score, 100)) / 100}
+                        strokeDashoffset={188.5 - (188.5 * Math.min(creditScore, 1000)) / 1000}
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                      <span className="text-3xl font-black text-[#111827]">{profile.reputation_score}</span>
+                      <span className="text-3xl font-black text-[#111827]">{creditScore}</span>
                     </div>
                   </div>
-                  <span className="bg-[#4ade80] text-[#14532d] text-xs font-bold px-3 py-1 rounded-full">
-                    {profile.reputation_score >= 50 ? "GOOD" : "NEW"}
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    creditTier === "Excellent" ? "bg-[#4ade80] text-[#14532d]" :
+                    creditTier === "Good" ? "bg-[#bfdbfe] text-[#1e40af]" :
+                    creditTier === "Fair" ? "bg-[#fef3c7] text-[#d97706]" :
+                    "bg-red-100 text-red-600"
+                  }`}>
+                    {creditTier.toUpperCase()}
                   </span>
                 </div>
-                <p className="text-center text-sm text-[#6b7280]">Reputation score</p>
+                <p className="text-center text-xs text-[#6b7280]">Credit Score · LTV {(maxLTV * 100).toFixed(0)}%</p>
               </div>
             </div>
 
@@ -153,7 +177,7 @@ export default function DashboardPage() {
                 {activeLoan ? (
                   <div>
                     <p className="text-3xl font-black text-[#111827]">
-                      ${activeLoan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatINR(activeLoanINR)}
                     </p>
                     <p className="text-sm text-[#16a34a] font-semibold mt-1">Due in {daysLeft} Days</p>
                   </div>
@@ -236,8 +260,10 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Pool & Your Stats</p>
               <div className="flex flex-col gap-3">
                 {[
-                  { label: "Reputation Score", value: String(profile.reputation_score) },
-                  { label: "Active Loan", value: activeLoan ? `$${activeLoan.amount.toLocaleString()}` : "None" },
+                  { label: "Credit Score", value: `${creditScore} / 1000` },
+                  { label: "Credit Tier", value: creditTier },
+                  { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },
+                  { label: "Active Loan", value: activeLoan ? formatINR(activeLoanINR) : "None" },
                   { label: "Loan Status", value: activeLoan ? activeLoan.status : "—" },
                   { label: "Days Remaining", value: activeLoan ? `${daysLeft}d` : "—" },
                 ].map((s) => (
