@@ -1,52 +1,47 @@
-// Cache for ETH price to avoid excessive API calls
-let cachedPrice: number | null = null;
-let lastFetchTime: number = 0;
-const CACHE_DURATION = 60000; // 1 minute
+/**
+ * getEthPrice.ts
+ * Delegates to the centralized /api/crypto proxy via fetchPrices().
+ * This file exists for backward compatibility — all pages that import
+ * { getEthPriceINR, formatINR, ethToINR, … } from "@/utils/getEthPrice"
+ * will now share the same in-memory cache & deduplication defined in
+ * services/cryptoApi.ts, eliminating duplicate network calls.
+ */
+
+import { fetchPrices } from "@/services/cryptoApi";
+
+const FALLBACK_PRICE = 290_000; // ₹2,90,000
+
+// Single in-flight guard so concurrent callers await the same promise
+let inflight: Promise<number> | null = null;
 
 export async function getEthPriceINR(): Promise<number> {
-  // Return cached price if still valid
-  const now = Date.now();
-  if (cachedPrice && (now - lastFetchTime) < CACHE_DURATION) {
-    return cachedPrice;
-  }
+  // Reuse in-flight request if one is already running
+  if (inflight) return inflight;
 
-  try {
-    const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=inr',
-      { cache: 'no-store' }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch ETH price');
+  inflight = (async () => {
+    try {
+      // fetchPrices already has 60-second cache + error handling
+      const prices = await fetchPrices(["ethereum"]);
+      const eth = prices.find((p) => p.id === "ethereum");
+      if (eth && eth.inr > 0) return eth.inr;
+      return FALLBACK_PRICE;
+    } catch (err) {
+      console.error("[getEthPriceINR] failed:", err);
+      return FALLBACK_PRICE;
+    } finally {
+      inflight = null;
     }
+  })();
 
-    const data = await response.json();
-    const price = data.ethereum?.inr;
-
-    if (typeof price === 'number' && price > 0) {
-      cachedPrice = price;
-      lastFetchTime = now;
-      return price;
-    }
-
-    throw new Error('Invalid price data');
-  } catch (error) {
-    console.error('Error fetching ETH price:', error);
-    
-    // Fallback to cached price if available
-    if (cachedPrice) {
-      return cachedPrice;
-    }
-
-    // Default fallback price (approximate)
-    return 250000; // ₹2,50,000 per ETH
-  }
+  return inflight;
 }
 
+// ── Formatting helpers ────────────────────────────────────────────────────
+
 export function formatINR(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount);
 }
@@ -60,5 +55,6 @@ export function ethToINR(ethAmount: number, ethPrice: number): number {
 }
 
 export function inrToETH(inrAmount: number, ethPrice: number): number {
+  if (!ethPrice) return 0;
   return inrAmount / ethPrice;
 }

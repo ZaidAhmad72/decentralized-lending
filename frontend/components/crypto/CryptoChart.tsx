@@ -16,7 +16,7 @@ interface Props {
   onRangeChange: (r: TimeRange) => void;
 }
 
-const RANGES: TimeRange[] = ["1D", "1W", "1M", "1Y", "5Y"];
+const RANGES: TimeRange[] = ["1D", "1W", "1M", "1Y"];
 
 function formatLabel(ts: number, range: TimeRange): string {
   const d = new Date(ts);
@@ -38,6 +38,22 @@ function CustomTooltip({ active, payload }: any) {
   );
 }
 
+function Spinner() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex gap-1.5">
+        {[0, 150, 300].map((d) => (
+          <span
+            key={d}
+            className="w-2 h-2 rounded-full bg-[#1a2fb8] dark:bg-blue-400 animate-bounce"
+            style={{ animationDelay: `${d}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CryptoChart({ coin, data, loading, error, range, onRangeChange }: Props) {
   const chartData = useMemo(() =>
     data.map(([ts, price]) => ({ time: ts, price })),
@@ -49,7 +65,72 @@ export default function CryptoChart({ coin, data, loading, error, range, onRange
     : true;
 
   const color = isUp ? "#16a34a" : "#dc2626";
-  const gradientId = `grad-${coin.id}`;
+  const gradientId = "grad-" + coin.id;
+
+  function renderChart() {
+    // Still fetching
+    if (loading) return <Spinner />;
+
+    // Fetch failed
+    if (error) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-sm text-[#9ca3af] dark:text-gray-500 text-center">{error}</p>
+        </div>
+      );
+    }
+
+    // Fetch done but no data (shouldn't happen with synthetic fallback, but just in case)
+    if (chartData.length === 0) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-sm text-[#9ca3af] dark:text-gray-500">No data available for this range.</p>
+        </div>
+      );
+    }
+
+    // Happy path
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" className="dark:stroke-gray-700" />
+          <XAxis
+            dataKey="time"
+            tickFormatter={(v) => formatLabel(v, range)}
+            tick={{ fontSize: 10, fill: "#9ca3af" }}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={40}
+          />
+          <YAxis
+            tickFormatter={(v) => formatUSD(v)}
+            tick={{ fontSize: 10, fill: "#9ca3af" }}
+            tickLine={false}
+            axisLine={false}
+            width={72}
+            domain={["auto", "auto"]}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Area
+            type="monotone"
+            dataKey="price"
+            stroke={color}
+            strokeWidth={2}
+            fill={"url(#" + gradientId + ")"}
+            dot={false}
+            activeDot={{ r: 4, fill: color }}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-[#e5e9f0] dark:border-gray-700 shadow-sm transition-colors">
@@ -59,7 +140,6 @@ export default function CryptoChart({ coin, data, loading, error, range, onRange
           <h3 className="font-black text-[#111827] dark:text-white text-lg">{coin.name}</h3>
           <p className="text-xs text-[#6b7280] dark:text-gray-400 font-mono">{coin.symbol} / USD</p>
         </div>
-        {/* Range selector */}
         <div className="flex items-center gap-1 bg-[#f3f4f6] dark:bg-gray-700 rounded-xl p-1">
           {RANGES.map((r) => (
             <button
@@ -77,66 +157,7 @@ export default function CryptoChart({ coin, data, loading, error, range, onRange
         </div>
       </div>
 
-      {/* Chart area */}
-      <div className="h-56">
-        {loading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="flex gap-1.5">
-              {[0, 150, 300].map((d) => (
-                <span key={d} className="w-2 h-2 rounded-full bg-[#1a2fb8] dark:bg-blue-400 animate-bounce"
-                  style={{ animationDelay: `${d}ms` }} />
-              ))}
-            </div>
-          </div>
-        ) : error ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-sm text-[#9ca3af] dark:text-gray-500 text-center">{error}</p>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-sm text-[#9ca3af] dark:text-gray-500">No data available</p>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.2} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" className="dark:stroke-gray-700" />
-              <XAxis
-                dataKey="time"
-                tickFormatter={(v) => formatLabel(v, range)}
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={40}
-              />
-              <YAxis
-                tickFormatter={(v) => formatUSD(v)}
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                tickLine={false}
-                axisLine={false}
-                width={72}
-                domain={["auto", "auto"]}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="price"
-                stroke={color}
-                strokeWidth={2}
-                fill={`url(#${gradientId})`}
-                dot={false}
-                activeDot={{ r: 4, fill: color }}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      <div className="h-56">{renderChart()}</div>
     </div>
   );
 }

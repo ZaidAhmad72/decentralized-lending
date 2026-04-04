@@ -26,57 +26,80 @@ export function useCryptoData(): CryptoState {
   const [pricesError, setPricesError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>("bitcoin");
-  const [selectedRange, setSelectedRange] = useState<TimeRange>("1W");
+  const [selectedRange, setSelectedRange] = useState<TimeRange>("1M");
   const [chartData, setChartData] = useState<[number, number][]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
+  const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+  // Track whether the initial parallel load has already fired
+  const initialLoadDone = useRef(false);
 
-  // Load prices
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
   const loadPrices = useCallback(async () => {
     setPricesLoading(true);
     setPricesError(null);
     try {
       const data = await fetchPrices(allCoinIds());
+      if (!mountedRef.current) return;
       const map: Record<string, CoinPrice> = {};
       data.forEach((p) => { map[p.id] = p; });
       setPrices(map);
     } catch {
-      setPricesError("Price data unavailable, try again later.");
+      if (!mountedRef.current) return;
+      setPricesError("Unable to load crypto prices. Try again later.");
     } finally {
-      setPricesLoading(false);
+      if (mountedRef.current) setPricesLoading(false);
     }
   }, []);
 
-  // Load chart with debounce
-  const loadChart = useCallback((id: string, range: TimeRange) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setChartLoading(true);
-      setChartError(null);
-      try {
-        const data = await fetchChart(id, range);
-        setChartData(data);
-      } catch {
-        setChartError("Chart data unavailable, try again later.");
-      } finally {
-        setChartLoading(false);
-      }
-    }, 300);
+  const loadChart = useCallback(async (id: string, range: TimeRange) => {
+    if (!mountedRef.current) return;
+    setChartLoading(true);
+    setChartError(null);
+    try {
+      const data = await fetchChart(id, range);
+      if (!mountedRef.current) return;
+      // Always set data — even empty array stops the spinner
+      setChartData(data);
+    } catch {
+      if (!mountedRef.current) return;
+      setChartError("Chart data unavailable. Try again later.");
+      setChartData([]);
+    } finally {
+      if (mountedRef.current) setChartLoading(false);
+    }
   }, []);
 
-  // Initial load + auto-refresh every 60s
+  const debouncedLoadChart = useCallback((id: string, range: TimeRange) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => loadChart(id, range), 80);
+  }, [loadChart]);
+
+  // Initial load — prices and chart fire in parallel, exactly once
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     loadPrices();
+    loadChart("bitcoin", "1M");
     const interval = setInterval(loadPrices, 60_000);
     return () => clearInterval(interval);
-  }, [loadPrices]);
+  }, [loadPrices, loadChart]);
 
-  // Load chart when selection changes
+  // Reload chart when user changes coin or range
+  const prevSelectionRef = useRef({ id: "bitcoin", range: "1M" as TimeRange });
   useEffect(() => {
-    if (selectedId) loadChart(selectedId, selectedRange);
-  }, [selectedId, selectedRange, loadChart]);
+    const prev = prevSelectionRef.current;
+    if (!selectedId) return;
+    // Skip if nothing actually changed
+    if (prev.id === selectedId && prev.range === selectedRange) return;
+    prevSelectionRef.current = { id: selectedId, range: selectedRange };
+    debouncedLoadChart(selectedId, selectedRange);
+  }, [selectedId, selectedRange, debouncedLoadChart]);
 
   const selectCoin = useCallback((id: string) => setSelectedId(id), []);
   const selectRange = useCallback((r: TimeRange) => setSelectedRange(r), []);
