@@ -46,7 +46,7 @@ export async function createLoanRequest(
 export async function fetchPendingLoans(currentUserId: string): Promise<LoanRequest[]> {
   const { data, error } = await supabase
     .from("loan_requests")
-    .select("*, profiles(name, reputation_score)")
+    .select("*, profiles!loan_requests_borrower_id_fkey(name, reputation_score)")
     .eq("status", "pending")
     .neq("borrower_id", currentUserId)
     .order("created_at", { ascending: false });
