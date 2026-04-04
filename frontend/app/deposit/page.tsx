@@ -4,35 +4,29 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/utils/supabase/client";
-import { borrowFromPool } from "@/services/loanService";
-import { getPoolStats } from "@/services/poolService";
+import { depositToPool, getPoolStats, getUserTotalDeposited } from "@/services/poolService";
 
-const DURATION_OPTIONS = [
-  { label: "7 Days", days: 7 },
-  { label: "14 Days", days: 14 },
-  { label: "30 Days", days: 30 },
-  { label: "60 Days", days: 60 },
-  { label: "90 Days", days: 90 },
-];
-
-const DAILY_RATE = 0.024;
-
-export default function RequestLoanPage() {
+export default function DepositPage() {
   const router = useRouter();
   const supabase = createClient();
 
   const [amount, setAmount] = useState("");
-  const [durationLabel, setDurationLabel] = useState("30 Days");
-  const [purpose, setPurpose] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [availableLiquidity, setAvailableLiquidity] = useState(0);
+  const [success, setSuccess] = useState(false);
+  const [poolStats, setPoolStats] = useState({ total_liquidity: 0, total_borrowed: 0 });
+  const [userDeposited, setUserDeposited] = useState(0);
 
   useEffect(() => {
     const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/"); return; }
+
       try {
         const stats = await getPoolStats();
-        setAvailableLiquidity(stats.total_liquidity - stats.total_borrowed);
+        setPoolStats(stats);
+        const deposited = await getUserTotalDeposited(user.id);
+        setUserDeposited(deposited);
       } catch (err) {
         console.error(err);
       }
@@ -40,24 +34,38 @@ export default function RequestLoanPage() {
     load();
   }, []);
 
-  const selectedDays = DURATION_OPTIONS.find((d) => d.label === durationLabel)?.days ?? 30;
-  const estInterest = amount ? (parseFloat(amount) * (DAILY_RATE / 100) * selectedDays).toFixed(2) : "—";
-
-  const handleSubmit = async () => {
+  const handleDeposit = async () => {
     setError("");
-    if (!amount || parseFloat(amount) <= 0) { setError("Enter a valid loan amount."); return; }
+    setSuccess(false);
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setError("Enter a valid deposit amount.");
+      return;
+    }
 
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/"); return; }
-      await borrowFromPool(user.id, parseFloat(amount), selectedDays);
-      router.push("/dashboard");
+
+      await depositToPool(user.id, parseFloat(amount));
+      setSuccess(true);
+      setAmount("");
+
+      // Refresh stats
+      const stats = await getPoolStats();
+      setPoolStats(stats);
+      const deposited = await getUserTotalDeposited(user.id);
+      setUserDeposited(deposited);
+
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to borrow from pool.");
+      setError(err instanceof Error ? err.message : "Deposit failed.");
     }
     setLoading(false);
   };
+
+  const availableLiquidity = poolStats.total_liquidity - poolStats.total_borrowed;
 
   return (
     <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
@@ -72,9 +80,9 @@ export default function RequestLoanPage() {
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] mb-2">Borrow from Pool</h1>
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] mb-2">Deposit to Pool</h1>
           <p className="text-[#6b7280] text-sm lg:text-base leading-relaxed">
-            Borrow instantly from the lending pool. Available: ${availableLiquidity.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            Add liquidity to the lending pool and enable borrowers to access capital.
           </p>
         </div>
 
@@ -83,7 +91,7 @@ export default function RequestLoanPage() {
 
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0] flex flex-col gap-5">
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">Loan Amount (USDC)</label>
+                <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">Deposit Amount (USDC)</label>
                 <div className="flex items-center bg-[#f9fafb] rounded-2xl px-4 py-4 border border-[#e5e9f0] gap-3">
                   <input
                     type="number"
@@ -97,22 +105,6 @@ export default function RequestLoanPage() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-2">Repayment Term</label>
-                <div className="flex items-center bg-[#f9fafb] rounded-2xl px-4 py-4 border border-[#e5e9f0]">
-                  <select
-                    value={durationLabel}
-                    onChange={(e) => setDurationLabel(e.target.value)}
-                    className="flex-1 outline-none text-base font-semibold text-[#374151] bg-transparent appearance-none cursor-pointer"
-                  >
-                    {DURATION_OPTIONS.map((d) => <option key={d.label}>{d.label}</option>)}
-                  </select>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280"><path d="M7 10l5 5 5-5z" /></svg>
-                </div>
-              </div>
-
-
             </div>
 
             {error && (
@@ -121,41 +113,49 @@ export default function RequestLoanPage() {
               </div>
             )}
 
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-600 text-sm rounded-2xl px-4 py-3">
+                Deposit successful! Pool liquidity updated.
+              </div>
+            )}
+
             <button
-              onClick={handleSubmit}
+              onClick={handleDeposit}
               disabled={loading}
               className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 disabled:opacity-70"
             >
-              {loading ? "Processing..." : "Borrow from Pool"}
+              {loading ? "Processing..." : "Deposit to Pool"}
               {!loading && <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>}
             </button>
           </div>
 
           <div className="w-full lg:flex-1 flex flex-col gap-5">
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0] flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-[#4ade80] rounded-2xl flex items-center justify-center mb-4">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="#14532d"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" /></svg>
-              </div>
-              <h3 className="text-lg font-black text-[#111827] mb-2">Instant Pool Borrowing</h3>
-              <p className="text-sm text-[#6b7280] leading-relaxed">
-                Borrow directly from the shared liquidity pool. Funds are available instantly if liquidity permits.
-              </p>
-            </div>
-
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
-              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Loan Summary</p>
+              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Pool Statistics</p>
               <div className="flex flex-col gap-3">
                 {[
-                  { label: "Requested Amount", value: amount ? `$${parseFloat(amount).toLocaleString()}` : "—" },
-                  { label: "Repayment Term", value: durationLabel },
-                  { label: "Daily Rate", value: `${DAILY_RATE}%` },
-                  { label: "Est. Total Interest", value: amount ? `$${estInterest}` : "—" },
+                  { label: "Total Liquidity", value: `$${poolStats.total_liquidity.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+                  { label: "Total Borrowed", value: `$${poolStats.total_borrowed.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+                  { label: "Available Liquidity", value: `$${availableLiquidity.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+                  { label: "Your Total Deposited", value: `$${userDeposited.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">
                     <span className="text-sm text-[#6b7280]">{row.label}</span>
                     <span className="text-sm font-bold text-[#111827]">{row.value}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="bg-[#f0fdf4] rounded-3xl p-6 border border-[#bbf7d0] flex items-start gap-4">
+              <div className="w-10 h-10 bg-[#4ade80] rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#14532d"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#15803d] mb-1">Earn Yield on Deposits</p>
+                <p className="text-xs text-[#16a34a] leading-relaxed">
+                  Your deposits enable borrowers to access capital. Interest from loans will be distributed to lenders.
+                </p>
               </div>
             </div>
           </div>

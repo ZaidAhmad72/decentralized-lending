@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/utils/supabase/client";
-import { fetchActiveLoan, repayLoan, checkAndMarkDefaulted, type LoanRequest } from "@/lib/loans";
+import { getUserActiveLoan, repayLoan, checkAndMarkDefaulted, type Loan } from "@/services/loanService";
 
 export default function RepayPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [loan, setLoan] = useState<LoanRequest | null>(null);
+  const [loan, setLoan] = useState<Loan | null>(null);
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [repaying, setRepaying] = useState(false);
@@ -23,7 +23,7 @@ export default function RepayPage() {
       if (!user) { router.push("/"); return; }
       setUserId(user.id);
       await checkAndMarkDefaulted(user.id);
-      const activeLoan = await fetchActiveLoan(user.id);
+      const activeLoan = await getUserActiveLoan(user.id);
       setLoan(activeLoan);
       setLoading(false);
     };
