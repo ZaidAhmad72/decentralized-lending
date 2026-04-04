@@ -3,23 +3,37 @@
 import { useState } from "react";
 import LoanCard from "@/components/LoanCard";
 import Navbar from "@/components/Navbar";
+import { useWallet } from "@/wallet/walletHooks";
+import { fundLoan } from "@/services/transactionService";
+import { createClient } from "@/utils/supabase/client";
 
 const mockLoans = [
-  { id: 1, borrower: "Marcus Reid", amount: 5000, reason: "Expanding my small bakery business — need equipment for a second location.", duration: "30 Days", score: 920 },
-  { id: 2, borrower: "Priya Sharma", amount: 2500, reason: "Medical expenses for a family member. Will repay from next month's salary.", duration: "14 Days", score: 875 },
-  { id: 3, borrower: "James Okafor", amount: 8000, reason: "Inventory purchase for my e-commerce store ahead of the holiday season.", duration: "60 Days", score: 950 },
-  { id: 4, borrower: "Sofia Mendes", amount: 1200, reason: "Tuition payment for online certification course in data science.", duration: "30 Days", score: 840 },
-  { id: 5, borrower: "Liam Chen", amount: 15000, reason: "Bridge loan for real estate down payment while awaiting property sale.", duration: "90 Days", score: 990 },
-  { id: 6, borrower: "Aisha Patel", amount: 3500, reason: "Working capital for freelance design studio during slow season.", duration: "30 Days", score: 905 },
+  { id: 1, borrower: "Marcus Reid", amount: 5000, reason: "Expanding my small bakery business — need equipment for a second location.", duration: "30 Days", score: 920, walletAddress: "0xaBcD1234aBcD1234aBcD1234aBcD1234aBcD1234" },
+  { id: 2, borrower: "Priya Sharma", amount: 2500, reason: "Medical expenses for a family member. Will repay from next month's salary.", duration: "14 Days", score: 875, walletAddress: "0x1111222233334444555566667777888899990000" },
+  { id: 3, borrower: "James Okafor", amount: 8000, reason: "Inventory purchase for my e-commerce store ahead of the holiday season.", duration: "60 Days", score: 950, walletAddress: "0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf" },
+  { id: 4, borrower: "Sofia Mendes", amount: 1200, reason: "Tuition payment for online certification course in data science.", duration: "30 Days", score: 840, walletAddress: "0xFaCeFaCeFaCeFaCeFaCeFaCeFaCeFaCeFaCeFaCe" },
+  { id: 5, borrower: "Liam Chen", amount: 15000, reason: "Bridge loan for real estate down payment while awaiting property sale.", duration: "90 Days", score: 990, walletAddress: "0xCaFeBaBeCaFeBaBeCaFeBaBeCaFeBaBeCaFeBaBe" },
+  { id: 6, borrower: "Aisha Patel", amount: 3500, reason: "Working capital for freelance design studio during slow season.", duration: "30 Days", score: 905, walletAddress: "0x0000111122223333444455556666777788889999" },
 ];
 
 type FundedLoan = { id: number; rate: string };
 
 export default function LoansPage() {
   const [funded, setFunded] = useState<FundedLoan[]>([]);
+  const { address: lenderAddress } = useWallet();
+  const supabase = createClient();
 
   const handleConfirmFund = (id: number, rate: string) => {
     setFunded((prev) => [...prev, { id, rate }]);
+  };
+
+  const handleFundViaWallet = async (loan: typeof mockLoans[0], rate: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    if (!lenderAddress) throw new Error("Wallet not ready");
+
+    await fundLoan(user.id, loan.id, loan.walletAddress);
+    setFunded((prev) => [...prev, { id: loan.id, rate }]);
   };
 
   const isFunded = (id: number) => funded.some((f) => f.id === id);
@@ -88,7 +102,9 @@ export default function LoansPage() {
                 reason={loan.reason}
                 duration={loan.duration}
                 score={loan.score}
+                walletAddress={loan.walletAddress}
                 onConfirmFund={(rate) => handleConfirmFund(loan.id, rate)}
+                onFundViaWallet={lenderAddress ? (rate) => handleFundViaWallet(loan, rate) : undefined}
               />
             )
           )}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import WalletCard from "@/components/WalletCard";
 import { createClient } from "@/utils/supabase/client";
 
 const defaultUser = {
@@ -196,6 +197,9 @@ export default function DashboardPage() {
                 Repay Loan
               </button>
             </div>
+
+            {/* Smart Wallet Card */}
+            <WalletCard />
 
             {/* Desktop: quick stats panel */}
             <div className="hidden lg:block bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mt-1">
