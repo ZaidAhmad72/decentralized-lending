@@ -44,7 +44,7 @@ export default function GoogleTranslateSwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f3f4f6] text-sm font-semibold text-[#374151] hover:bg-[#e5e9f0] transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f3f4f6] dark:bg-gray-700 text-sm font-semibold text-[#374151] dark:text-gray-200 hover:bg-[#e5e9f0] dark:hover:bg-gray-600 transition-colors"
         aria-label="Select language"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -62,7 +62,7 @@ export default function GoogleTranslateSwitcher() {
       {open && (
         <div
           role="listbox"
-          className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-lg border border-[#e5e9f0] py-1.5 z-[9999]"
+          className="absolute right-0 top-full mt-1.5 w-44 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-[#e5e9f0] dark:border-gray-700 py-1.5 z-[9999]"
         >
           {LANGUAGES.map((lang) => (
             <button
@@ -72,8 +72,8 @@ export default function GoogleTranslateSwitcher() {
               onClick={() => handleSelect(lang.code)}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left ${
                 current === lang.code
-                  ? "bg-[#eef2ff] text-[#1a2fb8] font-bold"
-                  : "text-[#374151] hover:bg-[#f3f4f6] font-medium"
+                  ? "bg-[#eef2ff] dark:bg-blue-950 text-[#1a2fb8] dark:text-blue-400 font-bold"
+                  : "text-[#374151] dark:text-gray-300 hover:bg-[#f3f4f6] dark:hover:bg-gray-700 font-medium"
               }`}
             >
               <span className="text-base">{lang.flag}</span>

@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const TABS = [
   { label: "HOME",    path: "/dashboard",    icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>) },
@@ -26,9 +27,9 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop top navbar ── */}
-      <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e9f0] shadow-sm items-center justify-between px-10 h-16">
+      <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-[#e5e9f0] dark:border-gray-700 shadow-sm items-center justify-between px-10 h-16 transition-colors">
         <span
-          className="text-[#1a2fb8] font-black text-xl tracking-tight cursor-pointer select-none"
+          className="text-[#1a2fb8] dark:text-blue-400 font-black text-xl tracking-tight cursor-pointer select-none"
           onClick={() => router.push("/dashboard")}
         >
           Vault
@@ -41,8 +42,8 @@ export default function Navbar() {
               onClick={() => router.push(tab.path)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 isActive(tab.path)
-                  ? "bg-[#eef2ff] text-[#1a2fb8]"
-                  : "text-[#6b7280] hover:text-[#111827] hover:bg-[#f3f4f6]"
+                  ? "bg-[#eef2ff] dark:bg-blue-950 text-[#1a2fb8] dark:text-blue-400"
+                  : "text-[#6b7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-[#f3f4f6] dark:hover:bg-gray-800"
               }`}
             >
               {tab.icon}
@@ -52,10 +53,11 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <GoogleTranslateSwitcher />
           <button
             onClick={handleLogout}
-            className="text-sm font-semibold text-[#6b7280] hover:text-red-500 transition-colors px-3 py-2 rounded-xl hover:bg-red-50"
+            className="text-sm font-semibold text-[#6b7280] dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950"
           >
             Logout
           </button>
@@ -63,8 +65,9 @@ export default function Navbar() {
       </nav>
 
       {/* ── Mobile bottom navbar ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] z-50">
-        <div className="flex justify-end px-4 pt-1.5 pb-0">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-[#e5e9f0] dark:border-gray-700 z-50 transition-colors">
+        <div className="flex justify-end items-center gap-2 px-4 pt-1.5 pb-0">
+          <ThemeToggle />
           <GoogleTranslateSwitcher />
         </div>
         <div className="flex">
@@ -73,7 +76,9 @@ export default function Navbar() {
               key={tab.label}
               onClick={() => router.push(tab.path)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[9px] font-bold tracking-wider transition-colors ${
-                isActive(tab.path) ? "text-[#1a2fb8]" : "text-[#9ca3af]"
+                isActive(tab.path)
+                  ? "text-[#1a2fb8] dark:text-blue-400"
+                  : "text-[#9ca3af] dark:text-gray-500"
               }`}
             >
               {tab.icon}
@@ -82,7 +87,7 @@ export default function Navbar() {
           ))}
           <button
             onClick={handleLogout}
-            className="flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[9px] font-bold tracking-wider text-red-400"
+            className="flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[9px] font-bold tracking-wider text-red-400 dark:text-red-500"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />

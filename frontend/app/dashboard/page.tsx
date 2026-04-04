@@ -50,13 +50,13 @@ export default function DashboardPage() {
     : 0;
 
   if (loading) return (
-    <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 flex items-center justify-center transition-colors">
       <p className="text-[#6b7280]">"Loading..."</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20 transition-colors">
 
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
@@ -75,8 +75,8 @@ export default function DashboardPage() {
 
         {/* Welcome */}
         <div className="mb-6">
-          <p className="text-[#6b7280] text-sm">"Welcome back,"</p>
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827]">{profile.name || "—"}</h1>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm">"Welcome back,"</p>
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white">{profile.name || "—"}</h1>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 mb-6">
@@ -84,7 +84,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
               {/* Pool Liquidity */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
@@ -92,7 +92,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">"Pool Liquidity"</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827]">
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">
                     ${poolStats.total_liquidity.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-sm text-[#16a34a] font-semibold mt-1">
@@ -102,7 +102,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Your Deposits */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" /></svg>
@@ -110,7 +110,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">"Your Deposits"</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827]">
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">
                     ${userDeposited.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                   <button onClick={() => router.push("/deposit")} className="text-xs text-[#1a2fb8] font-bold mt-1">"Deposit more ?"</button>
@@ -118,7 +118,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Reputation Score */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 transition-colors">
                 <div className="flex flex-col items-center mb-3">
                   <div className="relative w-36 h-20 overflow-hidden mb-2">
                     <svg viewBox="0 0 144 80" className="w-full h-full">
@@ -129,7 +129,7 @@ export default function DashboardPage() {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                      <span className="text-3xl font-black text-[#111827]">{profile.reputation_score}</span>
+                      <span className="text-3xl font-black text-[#111827] dark:text-white">{profile.reputation_score}</span>
                     </div>
                   </div>
                   <span className="bg-[#4ade80] text-[#14532d] text-xs font-bold px-3 py-1 rounded-full">
@@ -143,7 +143,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
               {/* Active Loan */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" /></svg>
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                 </div>
                 {activeLoan ? (
                   <div>
-                    <p className="text-3xl font-black text-[#111827]">
+                    <p className="text-3xl font-black text-[#111827] dark:text-white">
                       ${activeLoan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </p>
                     <p className="text-sm text-[#16a34a] font-semibold mt-1">"Due in" {daysLeft} "Days"</p>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Loan Status */}
-              <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] flex flex-col justify-between">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">"Status"</span>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-[#111827] capitalize">
+                  <p className="text-2xl font-black text-[#111827] dark:text-white capitalize">
                     {activeLoan ? activeLoan.status : "—"}
                   </p>
                   {activeLoan && (
@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="flex flex-col gap-3 lg:w-72 lg:flex-shrink-0">
-            <h2 className="text-xl font-black text-[#111827] hidden lg:block">"Quick Actions"</h2>
+            <h2 className="text-xl font-black text-[#111827] dark:text-white hidden lg:block">"Quick Actions"</h2>
 
             <button
               onClick={() => router.push("/deposit")}
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="#14532d"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" /></svg>
                 "Deposit"
               </button>
-              <button onClick={() => router.push("/repay")} className="bg-[#e5e9f0] text-[#374151] rounded-2xl py-5 font-bold text-base flex flex-col items-center gap-2 hover:bg-[#d1d5db] transition-all active:scale-95">
+              <button onClick={() => router.push("/repay")} className="bg-[#e5e9f0] dark:bg-gray-700 text-[#374151] dark:text-gray-200 rounded-2xl py-5 font-bold text-base flex flex-col items-center gap-2 hover:bg-[#d1d5db] dark:hover:bg-gray-600 transition-all active:scale-95">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="#374151"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" /></svg>
                 "Repay Loan"
               </button>
@@ -232,8 +232,8 @@ export default function DashboardPage() {
             <WalletCard />
 
             {/* Desktop: quick stats panel */}
-            <div className="hidden lg:block bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mt-1">
-              <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">"Pool & Your Stats"</p>
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 mt-1 transition-colors">
+              <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">"Pool & Your Stats"</p>
               <div className="flex flex-col gap-3">
                 {[
                   { label: "Reputation Score", value: String(profile.reputation_score) },
@@ -242,8 +242,8 @@ export default function DashboardPage() {
                   { label: "Days Remaining", value: activeLoan ? `${daysLeft}d` : "—" },
                 ].map((s) => (
                   <div key={s.label} className="flex justify-between items-center">
-                    <span className="text-sm text-[#6b7280]">{s.label}</span>
-                    <span className="text-sm font-bold text-[#111827] capitalize">{s.value}</span>
+                    <span className="text-sm text-[#6b7280] dark:text-gray-400">{s.label}</span>
+                    <span className="text-sm font-bold text-[#111827] dark:text-white capitalize">{s.value}</span>
                   </div>
                 ))}
               </div>

@@ -55,16 +55,16 @@ export default function RepayPage() {
   const totalDue = loan ? loan.amount + interest : 0;
 
   if (loading) return (
-    <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 flex items-center justify-center transition-colors">
       <p className="text-[#6b7280]">Loading...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24 lg:pb-10 lg:pt-20">
+    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20 transition-colors">
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0]">
+          <button onClick={() => router.back()} className="w-9 h-9 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0] dark:border-gray-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#374151"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
           </button>
           <span className="text-[#1a2fb8] font-bold text-lg tracking-tight">Vault</span>
@@ -73,14 +73,14 @@ export default function RepayPage() {
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] mb-2">Repay Loan</h1>
-          <p className="text-[#6b7280] text-sm lg:text-base">Settle your active loan and boost your reputation score.</p>
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">Repay Loan</h1>
+          <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base">Settle your active loan and boost your reputation score.</p>
         </div>
 
         {!loan ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-sm border border-[#e5e9f0]">
-            <p className="text-[#111827] font-bold text-lg mb-2">No active loan</p>
-            <p className="text-[#6b7280] text-sm mb-6">You don't have any funded loans to repay right now.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-[#e5e9f0] dark:border-gray-700 transition-colors">
+            <p className="text-[#111827] dark:text-white font-bold text-lg mb-2">No active loan</p>
+            <p className="text-[#6b7280] dark:text-gray-400 text-sm mb-6">You don't have any funded loans to repay right now.</p>
             <button onClick={() => router.push("/request-loan")} className="bg-[#1a2fb8] text-white rounded-2xl px-6 py-3 font-bold text-sm">
               Request a Loan
             </button>
@@ -89,9 +89,9 @@ export default function RepayPage() {
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
-              <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 transition-colors">
                 <div className="flex items-center justify-between mb-5">
-                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase">
+                  <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">
                     Loan #{loan.id.slice(0, 8).toUpperCase()}
                   </span>
                   <span className={`text-xs font-bold px-3 py-1 rounded-full ${daysLeft <= 3 ? "bg-red-100 text-red-600" : "bg-[#fef3c7] text-[#d97706]"}`}>
@@ -100,19 +100,19 @@ export default function RepayPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   {[
-                    { label: "Principal", value: `$${loan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, color: "text-[#111827]" },
+                    { label: "Principal", value: `$${loan.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, color: "text-[#111827] dark:text-white" },
                     { label: "Accrued Interest", value: `+$${interest.toFixed(2)}`, color: "text-[#d97706]" },
-                    { label: "Daily Rate", value: "0.024%", color: "text-[#374151]" },
-                    { label: "Due Date", value: loan.due_date ? new Date(loan.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—", color: "text-[#374151]" },
+                    { label: "Daily Rate", value: "0.024%", color: "text-[#374151] dark:text-gray-300" },
+                    { label: "Due Date", value: loan.due_date ? new Date(loan.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—", color: "text-[#374151] dark:text-gray-300" },
                   ].map((row) => (
-                    <div key={row.label} className="flex justify-between items-center py-3 border-b border-[#f3f4f6]">
-                      <span className="text-sm text-[#6b7280]">{row.label}</span>
+                    <div key={row.label} className="flex justify-between items-center py-3 border-b border-[#f3f4f6] dark:border-gray-700">
+                      <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
                       <span className={`font-bold text-sm ${row.color}`}>{row.value}</span>
                     </div>
                   ))}
                   <div className="flex justify-between items-center pt-3">
-                    <span className="text-base font-bold text-[#111827]">Total Due</span>
-                    <span className="text-2xl font-black text-[#111827]">
+                    <span className="text-base font-bold text-[#111827] dark:text-white">Total Due</span>
+                    <span className="text-2xl font-black text-[#111827] dark:text-white">
                       ${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -120,7 +120,7 @@ export default function RepayPage() {
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl px-4 py-3">
+                <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm rounded-2xl px-4 py-3">
                   {error}
                 </div>
               )}
@@ -154,8 +154,8 @@ export default function RepayPage() {
                 </div>
               </div>
 
-              <div className="hidden lg:block bg-white rounded-3xl p-6 shadow-sm border border-[#e5e9f0]">
-                <p className="text-xs font-semibold tracking-widest text-[#6b7280] uppercase mb-4">Repayment Breakdown</p>
+              <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 transition-colors">
+                <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Repayment Breakdown</p>
                 <div className="flex flex-col gap-3">
                   {[
                     { label: "You're paying", value: `$${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
@@ -163,9 +163,9 @@ export default function RepayPage() {
                     { label: "Interest paid", value: `$${interest.toFixed(2)}` },
                     { label: "Reputation gain", value: "+10 PTS" },
                   ].map((row) => (
-                    <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">
-                      <span className="text-sm text-[#6b7280]">{row.label}</span>
-                      <span className="text-sm font-bold text-[#111827]">{row.value}</span>
+                    <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
+                      <span className="text-sm text-[#6b7280] dark:text-gray-400">{row.label}</span>
+                      <span className="text-sm font-bold text-[#111827] dark:text-white">{row.value}</span>
                     </div>
                   ))}
                 </div>
