@@ -28,7 +28,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] flex flex-col px-6 pt-10 pb-8">
+    <div className="min-h-screen bg-[#eef2f7] flex flex-col md:items-center md:justify-center">
+      <div className="w-full max-w-sm mx-auto flex flex-col px-6 pt-10 pb-8 md:bg-white md:rounded-3xl md:shadow-lg md:my-8">
       {/* Logo */}
       <div className="mb-10">
         <span className="text-[#1a2fb8] font-bold text-xl tracking-tight">Vault</span>
@@ -163,6 +164,7 @@ export default function LoginPage() {
         <span className="text-[#1a2fb8] underline cursor-pointer">Terms of Service</span> and acknowledge our{" "}
         <span className="text-[#1a2fb8] underline cursor-pointer">Privacy Policy</span>.
       </p>
+      </div>{/* end inner card */}
     </div>
   );
 }

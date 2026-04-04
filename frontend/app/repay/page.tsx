@@ -27,9 +27,9 @@ export default function RepayPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 pt-10 pb-4">
+    <div className="min-h-screen bg-[#eef2f7] pb-24 md:pb-8 md:pt-20">
+      {/* Mobile top bar */}
+      <div className="flex items-center justify-between px-5 pt-10 pb-4 md:hidden">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -46,7 +46,7 @@ export default function RepayPage() {
         </div>
       </div>
 
-      <div className="px-5">
+      <div className="max-w-2xl mx-auto px-5 md:px-8">
         {/* Heading */}
         <div className="mb-6">
           <h1 className="text-3xl font-black text-[#111827] mb-2">Repay Loan</h1>

@@ -21,9 +21,9 @@ export default function DashboardPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 pt-10 pb-4">
+    <div className="min-h-screen bg-[#eef2f7] pb-24 md:pb-8 md:pt-20">
+      {/* Mobile top bar — hidden on desktop (desktop uses Navbar) */}
+      <div className="flex items-center justify-between px-5 pt-10 pb-4 md:hidden">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#374151] flex items-center justify-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
@@ -37,15 +37,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="px-5">
+      <div className="max-w-4xl mx-auto px-5 md:px-8">
         {/* Welcome */}
-        <div className="mb-5">
+        <div className="mb-5 md:pt-4">
           <p className="text-[#6b7280] text-sm">Welcome back,</p>
           <h1 className="text-3xl font-black text-[#111827]">{user.name}</h1>
         </div>
 
+        {/* Top cards — stack on mobile, 3-col on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
         {/* Score Card */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mb-4">
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
           {/* Gauge */}
           <div className="flex flex-col items-center mb-3">
             <div className="relative w-36 h-20 overflow-hidden mb-2">
@@ -81,7 +83,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Active Loan */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mb-3">
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 bg-[#eef2ff] rounded-lg flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a2fb8">
@@ -97,7 +99,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Wallet Balance */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0] mb-5">
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e5e9f0]">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 bg-[#f0fdf4] rounded-lg flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a">
@@ -111,11 +113,12 @@ export default function DashboardPage() {
           </p>
           <p className="text-sm text-[#16a34a] font-semibold mt-1">+{user.apy}% APY</p>
         </div>
+        </div>{/* end grid */}
 
         {/* Action Buttons */}
         <button
           onClick={() => router.push("/request-loan")}
-          className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-between px-5 hover:bg-[#1527a0] transition-all active:scale-95 mb-3"
+          className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-between px-5 hover:bg-[#1527a0] transition-all active:scale-95 mb-3 mt-5"
         >
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center">
@@ -153,7 +156,7 @@ export default function DashboardPage() {
 
         {/* Market Activity */}
         <h2 className="text-xl font-black text-[#111827] mb-3">Market Activity</h2>
-        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-[#e5e9f0]">
+        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-[#e5e9f0] mb-6">
           {activity.map((item, i) => (
             <div
               key={i}
@@ -172,7 +175,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div>{/* end max-w container */}
 
       <Navbar />
     </div>

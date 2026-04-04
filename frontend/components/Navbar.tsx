@@ -22,11 +22,20 @@ const tabs = [
     ),
   },
   {
-    label: "PROFILE",
-    path: "/dashboard",
+    label: "REQUEST LOAN",
+    path: "/request-loan",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+      </svg>
+    ),
+  },
+  {
+    label: "REPAY",
+    path: "/repay",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
       </svg>
     ),
   },
@@ -36,23 +45,55 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const isActive = (tab: (typeof tabs)[0]) =>
+    pathname === tab.path;
+
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-sm bg-white border-t border-[#e5e9f0] flex z-50">
-      {tabs.map((tab) => {
-        const active = pathname === tab.path || (tab.label === "MARKETPLACE" && pathname === "/loans");
-        return (
+    <>
+      {/* Desktop top navbar */}
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e9f0] shadow-sm items-center justify-between px-8 h-16">
+        <span
+          className="text-[#1a2fb8] font-black text-xl tracking-tight cursor-pointer"
+          onClick={() => router.push("/dashboard")}
+        >
+          Vault
+        </span>
+        <div className="flex items-center gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => router.push(tab.path)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                isActive(tab)
+                  ? "bg-[#eef2ff] text-[#1a2fb8]"
+                  : "text-[#6b7280] hover:text-[#111827] hover:bg-[#f3f4f6]"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="bg-[#1a2fb8] text-white text-xs font-bold px-3 py-1.5 rounded-full tracking-wide">
+          980 SCORE
+        </div>
+      </nav>
+
+      {/* Mobile bottom navbar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5e9f0] flex z-50">
+        {tabs.map((tab) => (
           <button
             key={tab.label}
             onClick={() => router.push(tab.path)}
-            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[10px] font-bold tracking-widest transition-colors ${
-              active ? "text-[#1a2fb8]" : "text-[#9ca3af]"
+            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[9px] font-bold tracking-wider transition-colors ${
+              isActive(tab) ? "text-[#1a2fb8]" : "text-[#9ca3af]"
             }`}
           >
             {tab.icon}
             {tab.label}
           </button>
-        );
-      })}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }

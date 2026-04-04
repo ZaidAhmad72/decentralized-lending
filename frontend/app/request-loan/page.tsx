@@ -19,9 +19,9 @@ export default function RequestLoanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f7] pb-24">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 pt-10 pb-4">
+    <div className="min-h-screen bg-[#eef2f7] pb-24 md:pb-8 md:pt-20">
+      {/* Mobile top bar */}
+      <div className="flex items-center justify-between px-5 pt-10 pb-4 md:hidden">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#e5e9f0]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#374151">
@@ -35,7 +35,7 @@ export default function RequestLoanPage() {
         </div>
       </div>
 
-      <div className="px-5">
+      <div className="max-w-2xl mx-auto px-5 md:px-8">
         {/* Heading */}
         <div className="mb-6">
           <h1 className="text-3xl font-black text-[#111827] mb-2">Request capital.</h1>
