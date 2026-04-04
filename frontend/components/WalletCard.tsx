@@ -167,7 +167,8 @@ export default function WalletCard() {
         {/* Faucet */}
         {showCustomInput ? (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 bg-white bg-opacity-20 rounded-xl px-3 py-2">
+            {/* Custom input */}
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.15)" }}>
               <input
                 type="number"
                 value={customAmount}
@@ -178,19 +179,19 @@ export default function WalletCard() {
                 min="0.001"
                 max="100"
                 autoFocus
-                className="flex-1 bg-transparent outline-none text-white font-bold text-base placeholder-white placeholder-opacity-40 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                style={{ colorScheme: "dark" }}
+                style={{ background: "transparent", color: "white", outline: "none", width: "100%", fontWeight: 700, fontSize: "1rem" }}
               />
-              <span className="text-white text-sm font-bold opacity-70">ETH</span>
+              <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>ETH</span>
             </div>
-            {/* Preset buttons */}
+            {/* Presets */}
             <div className="flex gap-2">
               {[0.5, 1, 2, 5].map((preset) => (
                 <button
                   key={preset}
                   onClick={() => handleAddETH(preset)}
                   disabled={adding}
-                  className="flex-1 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-xs font-bold py-2 rounded-lg transition-all disabled:opacity-50"
+                  style={{ background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 700, fontSize: "0.75rem" }}
+                  className="flex-1 py-2 rounded-lg transition-all disabled:opacity-50 hover:opacity-80"
                 >
                   +{preset}
                 </button>
@@ -201,13 +202,15 @@ export default function WalletCard() {
               <button
                 onClick={handleCustomSubmit}
                 disabled={adding || !customAmount}
-                className="flex-1 bg-white text-[#1a2fb8] rounded-xl py-2.5 font-bold text-sm hover:bg-opacity-90 transition-all disabled:opacity-50"
+                className="flex-1 rounded-xl py-2.5 font-bold text-sm transition-all disabled:opacity-50"
+                style={{ background: "white", color: "#1a2fb8" }}
               >
                 {adding ? "Adding..." : "Add ETH"}
               </button>
               <button
                 onClick={() => { setShowCustomInput(false); setCustomAmount(""); }}
-                className="w-10 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-xl font-bold text-base transition-all"
+                className="w-10 rounded-xl font-bold text-base transition-all hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
               >
                 ✕
               </button>
@@ -217,7 +220,8 @@ export default function WalletCard() {
           <button
             onClick={() => setShowCustomInput(true)}
             disabled={adding}
-            className="w-full bg-white text-[#1a2fb8] rounded-xl py-3 font-bold text-sm hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full rounded-xl py-3 font-bold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            style={{ background: "white", color: "#1a2fb8" }}
           >
             {adding ? (
               <>
