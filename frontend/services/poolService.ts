@@ -186,7 +186,14 @@ export async function withdrawFromPool(
   const sharesToBurn = (amountETH * pool.total_shares) / pool.total_liquidity;
   const userShares = await getUserShares(userId);
   
-  if (sharesToBurn > userShares) {
+  // Allow small rounding differences (within 0.0001% of user shares)
+  const epsilon = userShares * 0.000001;
+  const isFullWithdraw = Math.abs(sharesToBurn - userShares) <= epsilon;
+  
+  // If trying to withdraw all, use exact user shares to avoid rounding issues
+  const actualSharesToBurn = isFullWithdraw ? userShares : sharesToBurn;
+  
+  if (actualSharesToBurn > userShares) {
     throw new Error("Insufficient shares");
   }
 
@@ -198,7 +205,7 @@ export async function withdrawFromPool(
     .from("pool")
     .update({
       total_liquidity: pool.total_liquidity - amountETH,
-      total_shares: pool.total_shares - sharesToBurn,
+      total_shares: pool.total_shares - actualSharesToBurn,
     })
     .eq("id", 1);
   if (poolError) throw new Error(poolError.message);
@@ -207,7 +214,7 @@ export async function withdrawFromPool(
   const { error: sharesError } = await supabase
     .from("user_shares")
     .update({ 
-      shares: userShares - sharesToBurn, 
+      shares: userShares - actualSharesToBurn, 
       updated_at: new Date().toISOString() 
     })
     .eq("user_id", userId);
