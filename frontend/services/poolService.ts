@@ -217,12 +217,15 @@ export async function poolBorrow(amount: number): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// repay() — decreases totalBorrowed only
-export async function poolRepay(amount: number): Promise<void> {
+// repay() — decreases totalBorrowed, adds interest to totalLiquidity (distributed to depositors)
+export async function poolRepay(principal: number, interest: number = 0): Promise<void> {
   const pool = await getPoolStats();
   const { error } = await supabase
     .from("pool")
-    .update({ total_borrowed: Math.max(0, pool.total_borrowed - amount) })
+    .update({ 
+      total_borrowed: Math.max(0, pool.total_borrowed - principal),
+      total_liquidity: pool.total_liquidity + interest, // interest grows the pool → depositors earn yield
+    })
     .eq("id", 1);
   if (error) throw new Error(error.message);
 }

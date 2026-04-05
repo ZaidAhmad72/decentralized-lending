@@ -166,8 +166,8 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
     .eq("id", loanId);
   if (loanUpdateError) throw new Error(loanUpdateError.message);
 
-  // 8. Call pool repay (decreases totalBorrowed)
-  await poolRepay(loan.amount);
+  // 8. Call pool repay (decreases totalBorrowed, adds interest to totalLiquidity)
+  await poolRepay(loan.amount, interest);
 
   // 9. Update reputation: recordRepayment()
   await recordRepayment(borrowerId, onTime);
@@ -204,8 +204,8 @@ export async function checkAndMarkDefaulted(borrowerId: string): Promise<void> {
     // Mark defaulted
     await supabase.from("loans").update({ status: "defaulted" }).eq("id", loan.id);
 
-    // Pool: release the borrow (loan is lost, liquidity absorbs loss)
-    await poolRepay(loan.amount);
+    // Pool: release the borrow (loan is lost, no interest earned on default)
+    await poolRepay(loan.amount, 0);
 
     // Reputation: recordDefault() — score -= 75
     await recordDefault(borrowerId);
