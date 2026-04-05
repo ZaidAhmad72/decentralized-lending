@@ -11,6 +11,7 @@ import { createClient } from "@/utils/supabase/client";
 import { poolBorrow, poolRepay } from "./poolService";
 import { recordLoan, recordRepayment, recordDefault, getReputation, getMaxLTV, recalculateCreditScore } from "./reputationService";
 import { simulateTransaction } from "./walletService";
+import { checkBlacklist, runFraudCheck } from "./fraudDetection";
 
 const supabase = createClient();
 
@@ -41,6 +42,10 @@ export async function borrowFromPool(
   // 1. Check no existing active loan
   const existing = await getUserActiveLoan(borrowerId);
   if (existing) throw new Error("You already have an active loan. Repay it first.");
+
+  // 1b. Blacklist check + fraud detection
+  await checkBlacklist(borrowerId);
+  await runFraudCheck(borrowerId, "loan_request", amount);
 
   // 2. Fetch credit score → determine maxLTV
   const rep = await getReputation(borrowerId);
@@ -208,6 +213,9 @@ export async function checkAndMarkDefaulted(borrowerId: string): Promise<void> {
   for (const loan of overdue) {
     // Mark defaulted
     await supabase.from("loans").update({ status: "defaulted" }).eq("id", loan.id);
+
+    // Fraud check on default
+    await runFraudCheck(borrowerId, "default");
 
     // Pool: release the borrow (loan is lost, liquidity absorbs loss)
     await poolRepay(loan.amount);

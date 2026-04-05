@@ -56,6 +56,7 @@ export default function RequestLoanPage() {
   const [creditTier, setCreditTier] = useState("Good");
   const [maxLTV, setMaxLTV] = useState(0.75);
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownType | undefined>(undefined);
+  const [fraudProfile, setFraudProfile] = useState<FraudProfile>({ fraud_score: 0, fraud_flags: [], fraud_count: 0, status: "ACTIVE" });
 
   // Fraud state
   const [fraudStatus, setFraudStatus] = useState<"ACTIVE" | "BLACKLISTED">("ACTIVE");

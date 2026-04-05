@@ -15,13 +15,14 @@ import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import { calculateHealthFactor, formatHealthFactor, getHealthFactorColor } from "@/services/creditScoreService";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
 import { BlacklistBanner, FraudScoreBadge } from "@/components/FraudAlert";
+import { getUserAllActivePoolLoans, type PoolLoanWithMeta } from "@/services/privatePoolService";
 
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
   const { balance: walletBalance, address: walletAddress } = useWallet();
 
-  const [profile, setProfile] = useState({ name: "" });
+  const [profile, setProfile] = useState<{ name: string; wallet_balance?: number }>({ name: "" });
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
   const [poolStats, setPoolStats] = useState({ total_liquidity: 0, total_borrowed: 0 });
   const [userDeposited, setUserDeposited] = useState(0);
@@ -35,8 +36,8 @@ export default function DashboardPage() {
   const [gasSaved, setGasSaved] = useState<number>(0);
   const [fraudScore, setFraudScore] = useState(0);
   const [fraudStatus, setFraudStatus] = useState<"ACTIVE" | "BLACKLISTED">("ACTIVE");
+  const [privateLoans, setPrivateLoans] = useState<PoolLoanWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [privateLoans, setPrivateLoans] = useState<{ id: string; amount: number; due_date: string; pool_id: string; private_pools: { pool_name: string } | null }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -51,13 +52,14 @@ export default function DashboardPage() {
 
       if (prof) setProfile(prof);
 
-      const [loan, stats, deposited, price, rep, breakdown] = await Promise.all([
+      const [loan, stats, deposited, price, rep, breakdown, pLoans] = await Promise.all([
         getUserActiveLoan(user.id),
         getPoolStats(),
         getUserTotalDeposited(user.id),
         getEthPriceINR(),
         getReputation(user.id),
         getScoreBreakdown(user.id),
+        getUserAllActivePoolLoans(user.id),
       ]);
 
       setActiveLoan(loan);
@@ -68,44 +70,42 @@ export default function DashboardPage() {
       setCreditTier(getCreditTier(rep.credit_score));
       setMaxLTV(getMaxLTV(rep.credit_score));
       setScoreBreakdown(breakdown);
-      
-      // Calculate health factor
-      const collateralValue = prof?.wallet_balance || 0;
-      const borrowedValue = loan?.amount || 0;
-      const hf = calculateHealthFactor(collateralValue, borrowedValue);
-      setHealthFactor(hf);
-      
-      // Get score decay from breakdown (if available)
-      // For now, calculate based on last activity
+      setPrivateLoans(pLoans);
+
+      // Health factor
+      const collateralValue = prof?.wallet_balance ?? 0;
+      const borrowedValue = loan?.amount ?? 0;
+      setHealthFactor(calculateHealthFactor(collateralValue, borrowedValue));
+
+      // Score decay
       const { count: txCount } = await supabase
         .from("transactions")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-      
       const daysInactive = txCount === 0 ? 7 : 0;
-      const decay = daysInactive > 0 ? Math.round(rep.credit_score * 0.01 * daysInactive) : 0;
-      setScoreDecay(decay);
-      
-      // Calculate gas saved (transactions * 0.465 rupees)
+      setScoreDecay(daysInactive > 0 ? Math.round(rep.credit_score * 0.01 * daysInactive) : 0);
+
+      // Gas saved
       const { count: totalTx } = await supabase
         .from("transactions")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id);
-      
-      setGasSaved((totalTx || 0) * 0.465);
+      setGasSaved((totalTx ?? 0) * 0.465);
 
-      // Fetch fraud profile
-      const fraudRes = await fetch("/api/fraud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, action: { type: "transaction" } }),
-      });
-      if (fraudRes.ok) {
-        const fd = await fraudRes.json();
-        setFraudScore(fd.fraudScore ?? 0);
-        setFraudStatus(fd.status ?? "ACTIVE");
-      }
+      // Fraud profile via API
+      try {
+        const fraudRes = await fetch("/api/fraud", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, action: { type: "transaction" } }),
+        });
+        if (fraudRes.ok) {
+          const fd = await fraudRes.json();
+          setFraudScore(fd.fraudScore ?? 0);
+          setFraudStatus(fd.status ?? "ACTIVE");
+        }
+      } catch { /* non-critical — don't block dashboard load */ }
 
       setLoading(false);
     };
@@ -168,12 +168,8 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Pool Liquidity</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827] dark:text-white">
-                    {formatINR(poolLiquidityINR)}
-                  </p>
-                  <p className="text-sm text-[#16a34a] font-semibold mt-1">
-                    Available: {formatINR(availableLiquidityINR)}
-                  </p>
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">{formatINR(poolLiquidityINR)}</p>
+                  <p className="text-sm text-[#16a34a] font-semibold mt-1">Available: {formatINR(availableLiquidityINR)}</p>
                 </div>
               </div>
 
@@ -186,20 +182,14 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Your Deposits</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#111827] dark:text-white">
-                    {formatINR(userDepositedINR)}
-                  </p>
+                  <p className="text-3xl font-black text-[#111827] dark:text-white">{formatINR(userDepositedINR)}</p>
                   <button onClick={() => router.push("/deposit")} className="text-xs text-[#1a2fb8] font-bold mt-1">Deposit more →</button>
                 </div>
               </div>
 
-              {/* Credit Score - Enhanced */}
+              {/* Credit Score */}
               <div className="lg:col-span-3">
-                <CreditScoreDisplay 
-                  score={creditScore} 
-                  tier={creditTier} 
-                  breakdown={scoreBreakdown}
-                />
+                <CreditScoreDisplay score={creditScore} tier={creditTier} breakdown={scoreBreakdown} />
               </div>
             </div>
 
@@ -215,9 +205,7 @@ export default function DashboardPage() {
                 </div>
                 {activeLoan ? (
                   <div>
-                    <p className="text-3xl font-black text-[#111827] dark:text-white">
-                      {formatINR(activeLoanINR)}
-                    </p>
+                    <p className="text-3xl font-black text-[#111827] dark:text-white">{formatINR(activeLoanINR)}</p>
                     <p className="text-sm text-[#16a34a] font-semibold mt-1">Due in {daysLeft} Days</p>
                   </div>
                 ) : (
@@ -241,9 +229,7 @@ export default function DashboardPage() {
                     {activeLoan ? activeLoan.status : "—"}
                   </p>
                   {activeLoan && (
-                    <p className="text-sm text-[#16a34a] font-semibold mt-1">
-                      {activeLoan.duration_days} day term
-                    </p>
+                    <p className="text-sm text-[#16a34a] font-semibold mt-1">{activeLoan.duration_days} day term</p>
                   )}
                 </div>
               </div>
@@ -256,18 +242,17 @@ export default function DashboardPage() {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="#d97706"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>
                     </div>
                     <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Private Pool Loans</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-[#fef3c7] text-[#d97706]">{privateLoans.length} pending</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-[#fef3c7] text-[#d97706]">{privateLoans.length} active</span>
                   </div>
                   <div className="flex flex-col gap-2">
                     {privateLoans.map((pl) => {
-                      const daysLeft = Math.max(0, Math.ceil((new Date(pl.due_date).getTime() - Date.now()) / 86400000));
+                      const plDaysLeft = Math.max(0, Math.ceil((new Date(pl.due_date).getTime() - Date.now()) / 86400000));
                       const amtINR = ethToINR(pl.amount, ethPrice);
-                      const poolName = (pl.private_pools as { pool_name: string } | null)?.pool_name ?? "Private Pool";
                       return (
                         <div key={pl.id} className="flex items-center justify-between py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
                           <div>
-                            <p className="text-sm font-bold text-[#111827] dark:text-white">{poolName}</p>
-                            <p className="text-xs text-[#6b7280] dark:text-gray-400">Due in {daysLeft}d · {pl.amount.toFixed(4)} ETH</p>
+                            <p className="text-sm font-bold text-[#111827] dark:text-white">{pl.pool_name}</p>
+                            <p className="text-xs text-[#6b7280] dark:text-gray-400">Due in {plDaysLeft}d · {pl.amount.toFixed(4)} ETH</p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-black text-[#d97706]">{formatINR(amtINR)}</p>
@@ -312,12 +297,13 @@ export default function DashboardPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
             </button>
 
-            <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => router.push("/repay")} className="bg-[#e5e9f0] dark:bg-gray-700 text-[#374151] dark:text-white rounded-2xl py-5 font-bold text-base flex flex-col items-center gap-2 hover:bg-[#d1d5db] dark:hover:bg-gray-600 transition-all active:scale-95">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" /></svg>
-                Repay Loan
-              </button>
-            </div>
+            <button
+              onClick={() => router.push("/repay")}
+              className="bg-[#e5e9f0] dark:bg-gray-700 text-[#374151] dark:text-white rounded-2xl py-5 font-bold text-base flex flex-col items-center gap-2 hover:bg-[#d1d5db] dark:hover:bg-gray-600 transition-all active:scale-95"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" /></svg>
+              Repay Loan
+            </button>
 
             {/* Smart Wallet Card */}
             <WalletCard />
@@ -327,30 +313,19 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-4">Pool & Your Stats</p>
               <div className="flex flex-col gap-3">
                 {[
-                  { label: "Credit Score", value: `${creditScore} / 1000` },
-                  { label: "Credit Tier", value: creditTier },
-                  { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },                  { 
-                    label: "Health Factor", 
-                    value: formatHealthFactor(healthFactor),
-                    color: getHealthFactorColor(healthFactor)
-                  },
-                  { 
-                    label: "Dynamic Score Decay", 
-                    value: scoreDecay > 0 ? `−${scoreDecay} pts` : "Active",
-                    color: scoreDecay > 0 ? "text-red-600" : "text-green-600"
-                  },
-                  { label: "Active Loan", value: activeLoan ? formatINR(activeLoanINR) : "None" },
-                  { label: "Loan Status", value: activeLoan ? activeLoan.status : "—" },
-                  { label: "Days Remaining", value: activeLoan ? `${daysLeft}d` : "—" },
-                  { 
-                    label: "Gas Saved", 
-                    value: `₹${gasSaved.toFixed(2)}`,
-                    color: "text-green-600"
-                  },
+                  { label: "Credit Score",        value: `${creditScore} / 1000` },
+                  { label: "Credit Tier",          value: creditTier },
+                  { label: "Max LTV",              value: `${(maxLTV * 100).toFixed(0)}%` },
+                  { label: "Health Factor",        value: formatHealthFactor(healthFactor),  color: getHealthFactorColor(healthFactor) },
+                  { label: "Dynamic Score Decay",  value: scoreDecay > 0 ? `−${scoreDecay} pts` : "Active", color: scoreDecay > 0 ? "text-red-600" : "text-green-600" },
+                  { label: "Active Loan",          value: activeLoan ? formatINR(activeLoanINR) : "None" },
+                  { label: "Loan Status",          value: activeLoan ? activeLoan.status : "—" },
+                  { label: "Days Remaining",       value: activeLoan ? `${daysLeft}d` : "—" },
+                  { label: "Gas Saved",            value: `₹${gasSaved.toFixed(2)}`, color: "text-green-600" },
                 ].map((s) => (
                   <div key={s.label} className="flex justify-between items-center">
                     <span className="text-sm text-[#6b7280] dark:text-gray-400">{s.label}</span>
-                    <span className={`text-sm font-bold capitalize ${s.color || "text-[#111827] dark:text-white"}`}>{s.value}</span>
+                    <span className={`text-sm font-bold capitalize ${s.color ?? "text-[#111827] dark:text-white"}`}>{s.value}</span>
                   </div>
                 ))}
                 {/* Fraud Risk row */}
@@ -363,6 +338,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
       <Chatbot context={{
         reputationScore: creditScore,
         activeLoan: activeLoan ? { amount: activeLoan.amount, status: activeLoan.status, daysLeft } : null,
@@ -376,4 +352,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
