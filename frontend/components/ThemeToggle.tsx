@@ -30,14 +30,14 @@ export default function ThemeToggle() {
         ${isDark ? "bg-gray-700" : "bg-gray-200"}
       `}
     >
-      {/* Sun icon ΓÇö left */}
+      {/* Sun icon — left */}
       <span className={`absolute left-1.5 text-[11px] transition-opacity duration-200 ${isDark ? "opacity-30" : "opacity-100"}`}>
-        ΓÿÇ∩╕Å
+        ☀️
       </span>
 
-      {/* Moon icon ΓÇö right */}
+      {/* Moon icon — right */}
       <span className={`absolute right-1.5 text-[11px] transition-opacity duration-200 ${isDark ? "opacity-100" : "opacity-30"}`}>
-        ≡ƒîÖ
+        🌙
       </span>
 
       {/* Sliding circle */}
