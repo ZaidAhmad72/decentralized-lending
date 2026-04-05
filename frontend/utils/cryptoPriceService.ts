@@ -6,7 +6,7 @@
 import { CryptoSymbol, CRYPTO_CONFIGS } from './cryptoConfig';
 
 const CACHE_DURATION = 10000; // 10 seconds
-const API_ENDPOINT = 'https://api.coingecko.com/api/v3/simple/price';
+const API_ENDPOINT = '/api/prices'; // proxied through Next.js to avoid CORS
 
 interface PriceCache {
   prices: Record<CryptoSymbol, number>; // Price in INR
@@ -59,11 +59,7 @@ async function fetchPricesFromAPI(): Promise<PriceFetchResult> {
     
     const response = await fetch(
       `${API_ENDPOINT}?ids=${ids}&vs_currencies=inr`,
-      { 
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-      }
+      { method: 'GET', headers: { 'Accept': 'application/json' } }
     );
     
     if (!response.ok) {
