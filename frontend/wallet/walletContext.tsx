@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { getSmartWalletAddress, getWalletBalance } from "./walletClient";
+import { getWalletBalance } from "./walletClient";
 
 interface WalletState {
   address: string | null;
-  balance: string;
+  balance: string;       // on-chain balance
+  dbBalance: number;     // DB wallet_balance (used by pool system)
   loading: boolean;
   error: string | null;
 }
@@ -22,46 +23,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>({
     address: null,
     balance: "0.0000",
+    dbBalance: 0,
     loading: true,
     error: null,
   });
 
-  const initWallet = async () => {
+  const initWallet = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setState({ address: null, balance: "0.0000", loading: false, error: null });
+        setState({ address: null, balance: "0.0000", dbBalance: 0, loading: false, error: null });
         return;
       }
 
-      // Check if wallet already stored in DB
       const { data: profile } = await supabase
         .from("profiles")
-        .select("wallet_address")
+        .select("wallet_address, wallet_balance")
         .eq("id", user.id)
         .single();
 
-      let address = profile?.wallet_address as string | null;
+      const address = profile?.wallet_address as string | null;
+      const dbBalance = profile?.wallet_balance ?? 0;
 
-      if (!address) {
+      // Try on-chain balance; fall back gracefully
+      let onChainBalance = "0.0000";
+      if (address) {
         try {
-          // Derive and store wallet address (requires Biconomy config)
-          address = await getSmartWalletAddress(user.id);
-          await supabase
-            .from("profiles")
-            .update({ wallet_address: address })
-            .eq("id", user.id);
-        } catch (walletError) {
-          // Wallet features disabled - continue without wallet
-          console.warn("Wallet features disabled:", walletError);
-          setState({ address: null, balance: "0.0000", loading: false, error: null });
-          return;
-        }
+          onChainBalance = await getWalletBalance(address);
+        } catch { /* network unavailable */ }
       }
 
-      const balance = await getWalletBalance(address);
-      setState({ address, balance, loading: false, error: null });
+      setState({ address, balance: onChainBalance, dbBalance, loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -69,23 +62,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         error: err instanceof Error ? err.message : "Wallet init failed",
       }));
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const refreshBalance = async () => {
-    if (!state.address) return;
-    const balance = await getWalletBalance(state.address);
-    setState((s) => ({ ...s, balance }));
-  };
+  const refreshBalance = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("wallet_address, wallet_balance")
+      .eq("id", user.id)
+      .single();
+
+    const dbBalance = profile?.wallet_balance ?? 0;
+    setState((s) => ({ ...s, dbBalance }));
+
+    // Also refresh on-chain if address available
+    if (profile?.wallet_address) {
+      try {
+        const balance = await getWalletBalance(profile.wallet_address);
+        setState((s) => ({ ...s, balance }));
+      } catch { /* keep last known */ }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     initWallet();
-    // Re-init on auth state change
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") initWallet();
-      if (event === "SIGNED_OUT") setState({ address: null, balance: "0.0000", loading: false, error: null });
+      if (event === "SIGNED_OUT") setState({ address: null, balance: "0.0000", dbBalance: 0, loading: false, error: null });
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [initWallet]);
 
   return (
     <WalletContext.Provider value={{ ...state, refreshBalance }}>

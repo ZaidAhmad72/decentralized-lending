@@ -1,12 +1,12 @@
 /**
  * Crypto Price Service
- * Fetches cryptocurrency prices from CoinGecko API with caching
+ * Fetches cryptocurrency prices via /api/crypto (server proxy).
+ * Avoids CORS issues and rate limiting from direct CoinGecko calls.
  */
 
 import { CryptoSymbol, CRYPTO_CONFIGS } from './cryptoConfig';
 
-const CACHE_DURATION = 10000; // 10 seconds
-const API_ENDPOINT = 'https://api.coingecko.com/api/v3/simple/price';
+const CACHE_DURATION = 60_000; // 60 seconds — matches server-side cache
 
 interface PriceCache {
   prices: Record<CryptoSymbol, number>; // Price in INR
@@ -23,107 +23,73 @@ export interface PriceFetchResult {
 let priceCache: PriceCache | null = null;
 let fetchPromise: Promise<PriceFetchResult> | null = null;
 
+// CoinGecko ID → CryptoSymbol reverse map
+const COINGECKO_TO_SYMBOL: Record<string, CryptoSymbol> = Object.fromEntries(
+  Object.entries(CRYPTO_CONFIGS).map(([sym, cfg]) => [cfg.coingeckoId, sym as CryptoSymbol])
+);
+
 /**
- * Fetch crypto prices with caching and deduplication
- * Prices are cached for 10 seconds to prevent API spam
+ * Fetch crypto prices with caching and deduplication.
+ * Routes through /api/crypto to avoid CORS and rate limits.
  */
 export async function fetchCryptoPrices(): Promise<PriceFetchResult> {
-  // Return cached prices if still valid
   if (priceCache && Date.now() < priceCache.expiresAt) {
-    return {
-      prices: priceCache.prices,
-      cached: true,
-    };
+    return { prices: priceCache.prices, cached: true };
   }
-  
-  // Deduplicate concurrent requests
-  if (fetchPromise) {
-    return fetchPromise;
-  }
-  
+
+  if (fetchPromise) return fetchPromise;
+
   fetchPromise = fetchPricesFromAPI();
   const result = await fetchPromise;
   fetchPromise = null;
-  
   return result;
 }
 
-/**
- * Fetch prices from CoinGecko API
- */
 async function fetchPricesFromAPI(): Promise<PriceFetchResult> {
   try {
-    const ids = Object.values(CRYPTO_CONFIGS)
-      .map(c => c.coingeckoId)
-      .join(',');
-    
-    const response = await fetch(
-      `${API_ENDPOINT}?ids=${ids}&vs_currencies=inr`,
-      { 
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Map response to our structure
+    // Use our own server-side proxy — no CORS, no rate limiting
+    const res = await fetch("/api/crypto?type=prices", {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) throw new Error("API error: " + res.status);
+
+    // Response shape: { [coingeckoId]: { usd, inr, usd_24h_change } }
+    const data = await res.json();
+
     const prices: Partial<Record<CryptoSymbol, number>> = {};
-    
-    Object.entries(CRYPTO_CONFIGS).forEach(([symbol, config]) => {
-      const price = data[config.coingeckoId]?.inr;
-      if (price) {
-        prices[symbol as CryptoSymbol] = price;
+
+    Object.entries(data).forEach(([cgId, val]) => {
+      const symbol = COINGECKO_TO_SYMBOL[cgId];
+      if (symbol && typeof (val as { inr?: number }).inr === "number") {
+        prices[symbol] = (val as { inr: number }).inr;
       }
     });
-    
-    // Update cache
+
     priceCache = {
       prices: prices as Record<CryptoSymbol, number>,
       timestamp: Date.now(),
       expiresAt: Date.now() + CACHE_DURATION,
     };
-    
-    return {
-      prices: prices as Record<CryptoSymbol, number>,
-      cached: false,
-    };
+
+    return { prices: prices as Record<CryptoSymbol, number>, cached: false };
   } catch (error) {
-    console.error('Failed to fetch crypto prices:', error);
-    
-    // Return cached prices if available, even if expired
+    console.error("fetchCryptoPrices failed:", error);
+
     if (priceCache) {
-      return {
-        prices: priceCache.prices,
-        cached: true,
-        error: 'Using cached prices (API unavailable)',
-      };
+      return { prices: priceCache.prices, cached: true, error: "Using cached prices" };
     }
-    
-    // Return fallback prices if no cache
+
+    // Hard fallback — keeps UI alive
     const fallbackPrices: Record<CryptoSymbol, number> = {
-      'USDC': 83,
-      'USDT': 83,
-      'BTC': 7500000,
-      'ETH': 192000,
-      'BNB': 45000,
-      'SOL': 12000,
-      'XRP': 150,
-      'DOGE': 20,
-      'PEPE': 0.0015,
-      'BONK': 0.002,
+      USDC: 83, USDT: 83,
+      BTC: 7500000, ETH: 290000, BNB: 50000,
+      SOL: 12000, XRP: 150,
+      DOGE: 20, PEPE: 0.0015, BONK: 0.002,
     };
-    
-    return {
-      prices: fallbackPrices,
-      cached: false,
-      error: 'Using fallback prices (API unavailable)',
-    };
+
+    return { prices: fallbackPrices, cached: false, error: "Using fallback prices" };
   }
 }
 

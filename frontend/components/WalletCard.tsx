@@ -115,12 +115,12 @@ export default function WalletCard() {
 
   const getPresetAmounts = () => {
     const crypto = CRYPTO_CONFIGS[selectedCrypto];
-    if (crypto.riskLevel === "Low Risk") {
-      return [100, 500, 1000, 5000]; // Stablecoins
-    } else if (crypto.riskLevel === "High Risk") {
-      return [1000000, 5000000, 10000000, 50000000]; // Memecoins
+    if (crypto.riskCategory === "stablecoin") {
+      return [100, 500, 1000, 5000];
+    } else if (crypto.riskCategory === "memecoin") {
+      return [1000000, 5000000, 10000000, 50000000];
     } else {
-      return [0.5, 1, 2, 5]; // Standard crypto
+      return [0.5, 1, 2, 5];
     }
   };
 
@@ -220,20 +220,19 @@ export default function WalletCard() {
                       className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">{crypto.icon}</span>
                         <div className="text-left">
                           <p className="text-sm font-bold">{crypto.name}</p>
                           <p className="text-xs opacity-70">{crypto.symbol}</p>
                         </div>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        crypto.riskLevel === "Low Risk" 
+                        crypto.riskCategory === "stablecoin"
                           ? "bg-green-500 bg-opacity-20 text-green-200"
-                          : crypto.riskLevel === "High Risk"
+                          : crypto.riskCategory === "memecoin"
                           ? "bg-red-500 bg-opacity-20 text-red-200"
                           : "bg-blue-500 bg-opacity-20 text-blue-200"
                       }`}>
-                        {crypto.riskLevel}
+                        {crypto.riskCategory}
                       </span>
                     </button>
                   );
@@ -248,7 +247,6 @@ export default function WalletCard() {
                   style={{ background: "rgba(255,255,255,0.15)" }}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{CRYPTO_CONFIGS[selectedCrypto].icon}</span>
                     <div className="text-left">
                       <p className="text-xs font-bold">{CRYPTO_CONFIGS[selectedCrypto].name}</p>
                       <p className="text-[10px] opacity-70">{CRYPTO_CONFIGS[selectedCrypto].symbol}</p>
