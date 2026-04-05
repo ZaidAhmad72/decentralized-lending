@@ -544,21 +544,21 @@ export default function PrivatePoolCard({ pool: initialPool, userId, onDeleted }
                           </div>
 
                           {/* Days field with label */}
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-[10px] text-[#9ca3af] font-semibold text-center">DAYS</span>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-gray-600 border border-[#e5e9f0] dark:border-gray-500 rounded-xl px-3 py-2.5">
+                            <span className="text-xs text-[#9ca3af] font-semibold whitespace-nowrap">Days</span>
                             <input
                               type="number"
                               value={borrowDays}
                               onChange={(e) => setBorrowDays(e.target.value)}
                               min="1"
-                              className="w-16 rounded-xl px-2 py-2.5 text-sm text-center border border-[#e5e9f0] dark:border-gray-500 bg-white dark:bg-gray-600 text-[#111827] dark:text-white outline-none font-bold"
+                              className="w-12 text-sm text-center bg-transparent text-[#111827] dark:text-white outline-none font-bold"
                             />
                           </div>
 
                           <button
                             onClick={handleBorrow}
                             disabled={actionLoading}
-                            className="px-4 py-2.5 rounded-xl font-bold text-sm bg-[#1a2fb8] text-white disabled:opacity-50 self-end"
+                            className="px-4 py-2.5 rounded-xl font-bold text-sm bg-[#1a2fb8] text-white disabled:opacity-50 whitespace-nowrap"
                           >
                             Borrow
                           </button>

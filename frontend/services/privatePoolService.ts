@@ -421,10 +421,7 @@ export async function borrowFromPrivatePool(
   // Record pair interaction
   await recordPairInteraction(poolId, pool.creator_id, borrowerId);
 
-  // Apply credit score impact (with weight)
-  if (abuseCheck.creditWeight > 0) {
-    await applyWeightedCreditImpact(borrowerId, "borrow", abuseCheck.creditWeight);
-  }
+  // Private pool borrows do NOT affect credit score — no call to applyWeightedCreditImpact
 
   return { txHash, creditWeight: abuseCheck.creditWeight, flags: abuseCheck.flags };
 }
@@ -524,7 +521,7 @@ export async function repayPrivatePoolLoan(
   });
 
   const creditWeight = isFullRepay ? 0.10 : 0.05;
-  await applyWeightedCreditImpact(borrowerId, onTime ? "repay_ontime" : "repay_late", creditWeight);
+  // Private pool repayments do NOT affect credit score — no call to applyWeightedCreditImpact
 
   return { txHash, creditWeight };
 }

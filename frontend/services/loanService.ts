@@ -133,9 +133,9 @@ export async function repayLoan(
   const totalRepayment = loan.amount + interest;
 
   // Use custom amount if provided, otherwise full repayment
-  const repayAmount = customAmount ?? totalRepayment;
+  // Clamp to totalRepayment — absorbs floating point drift from INR→ETH conversion
+  const repayAmount = Math.min(customAmount ?? totalRepayment, totalRepayment);
   if (repayAmount <= 0) throw new Error("Repay amount must be greater than 0");
-  if (repayAmount > totalRepayment) throw new Error(`Cannot repay more than total due: ${totalRepayment.toFixed(6)} ETH`);
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

@@ -100,9 +100,10 @@ export default function RepayPage() {
 
   const handleRepay = async () => {
     if (!loan) return;
-    const amt = repayAmountETH;
+    // Clamp to totalDue to absorb floating point drift from INR→ETH conversion
+    const amt = Math.min(repayAmountETH, totalDue);
     if (!amt || amt <= 0) { setError("Enter a repay amount"); return; }
-    if (amt > walletBalance) {
+    if (amt > walletBalance + 0.000001) {
       setError(`Insufficient balance. Have ${formatINR(walletINR)}`);
       return;
     }
