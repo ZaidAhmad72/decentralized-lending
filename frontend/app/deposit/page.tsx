@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Tooltip from "@/components/Tooltip";
 import { createClient } from "@/utils/supabase/client";
-import { depositToPool, getPoolStats, getUserTotalDeposited } from "@/services/poolService";
+import { depositToPool, getPoolStats, getUserTotalDeposited, withdrawFromPool } from "@/services/poolService";
 import { getWalletInfo, simulateTransaction } from "@/services/walletService";
 import { getEthPriceINR, formatINR, ethToINR, inrToETH } from "@/utils/getEthPrice";
 import { 
@@ -29,6 +29,7 @@ export default function DepositPage() {
   const supabase = createClient();
 
   const [amount, setAmount] = useState("");
+  const [mode, setMode] = useState<"deposit" | "withdraw">("deposit");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -114,6 +115,15 @@ export default function DepositPage() {
     return inrToCrypto(walletINR, selectedCrypto, cryptoPrices);
   }, [walletBalance, ethPrice, selectedCrypto, cryptoPrices, currentPrice]);
 
+  // Calculate max withdraw in selected crypto
+  const maxWithdrawCrypto = useMemo(() => {
+    if (currentPrice === 0) return 0;
+    const depositedINR = ethToINR(userDeposited, ethPrice);
+    const availableINR = ethToINR(poolStats.total_liquidity - poolStats.total_borrowed, ethPrice);
+    const maxINR = Math.min(depositedINR, availableINR);
+    return inrToCrypto(maxINR, selectedCrypto, cryptoPrices);
+  }, [userDeposited, poolStats, ethPrice, selectedCrypto, cryptoPrices, currentPrice]);
+
   const handleDeposit = async () => {
     setError("");
     setSuccess(false);
@@ -164,8 +174,66 @@ export default function DepositPage() {
     setLoading(false);
   };
 
+  const handleWithdraw = async () => {
+    setError("");
+    setSuccess(false);
+
+    const withdrawAmountCrypto = parseFloat(amount);
+    if (!amount || withdrawAmountCrypto <= 0) {
+      setError("Enter a valid withdraw amount.");
+      return;
+    }
+
+    // Convert crypto to ETH for backend
+    const withdrawAmountETH = cryptoToETH(withdrawAmountCrypto, selectedCrypto, cryptoPrices, ethPrice);
+    
+    // Validate against user's deposited amount
+    if (withdrawAmountETH > userDeposited) {
+      setError("Amount exceeds your deposited balance");
+      return;
+    }
+
+    // Validate against pool liquidity
+    const availableLiquidity = poolStats.total_liquidity - poolStats.total_borrowed;
+    if (withdrawAmountETH > availableLiquidity) {
+      setError("Insufficient pool liquidity");
+      return;
+    }
+
+    setLoading(true);
+    setTxStatus("pending");
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/"); return; }
+
+      // Withdraw in ETH (backend stores ETH)
+      const hash = await withdrawFromPool(user.id, withdrawAmountETH, selectedCrypto, withdrawAmountCrypto);
+      setTxHash(hash);
+      setTxStatus("success");
+      setSuccess(true);
+      setAmount("");
+
+      // Refresh stats
+      const stats = await getPoolStats();
+      setPoolStats(stats);
+      const deposited = await getUserTotalDeposited(user.id);
+      setUserDeposited(deposited);
+      const wallet = await getWalletInfo(user.id);
+      setWalletBalance(wallet.balance);
+    } catch (err: unknown) {
+      setTxStatus("idle");
+      setError(err instanceof Error ? err.message : "Withdraw failed.");
+    }
+    setLoading(false);
+  };
+
   const handleMaxDeposit = () => {
-    setAmount(formatCryptoAmount(maxDepositCrypto, selectedCrypto));
+    if (mode === "deposit") {
+      setAmount(formatCryptoAmount(maxDepositCrypto, selectedCrypto));
+    } else {
+      setAmount(formatCryptoAmount(maxWithdrawCrypto, selectedCrypto));
+    }
   };
 
   const walletBalanceINR = ethToINR(walletBalance, ethPrice);
@@ -181,6 +249,15 @@ export default function DepositPage() {
     return depositINR <= walletBalanceINR;
   }, [amount, depositINR, walletBalanceINR, pricesLoading, currentPrice]);
 
+  // Check if withdraw is valid
+  const isWithdrawValid = useMemo(() => {
+    if (!amount || parseFloat(amount) <= 0) return false;
+    if (pricesLoading || currentPrice === 0) return false;
+    const withdrawAmountETH = cryptoToETH(parseFloat(amount), selectedCrypto, cryptoPrices, ethPrice);
+    const availableLiquidity = poolStats.total_liquidity - poolStats.total_borrowed;
+    return withdrawAmountETH <= userDeposited && withdrawAmountETH <= availableLiquidity;
+  }, [amount, userDeposited, poolStats, pricesLoading, currentPrice, selectedCrypto, cryptoPrices, ethPrice]);
+
   return (
     <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 pb-24 lg:pb-10 lg:pt-20">
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
@@ -194,25 +271,55 @@ export default function DepositPage() {
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">Deposit to Pool</h1>
+          <h1 className="text-3xl lg:text-4xl font-black text-[#111827] dark:text-white mb-2">
+            {mode === "deposit" ? "Deposit to Pool" : "Withdraw from Pool"}
+          </h1>
           <p className="text-[#6b7280] dark:text-gray-400 text-sm lg:text-base leading-relaxed">
-            Add liquidity to the lending pool and enable borrowers to access capital.
+            {mode === "deposit" 
+              ? "Add liquidity to the lending pool and enable borrowers to access capital."
+              : "Withdraw your deposited funds from the lending pool."}
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <div className="w-full lg:w-[560px] lg:flex-shrink-0 flex flex-col gap-5">
 
+            {/* Mode Toggle */}
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-2 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex gap-2">
+              <button
+                onClick={() => { setMode("deposit"); setAmount(""); setError(""); }}
+                className={`flex-1 py-3 px-4 rounded-2xl font-bold text-sm transition-all ${
+                  mode === "deposit"
+                    ? "bg-[#1a2fb8] text-white shadow-sm"
+                    : "text-[#6b7280] dark:text-gray-400 hover:bg-[#f9fafb] dark:hover:bg-gray-700"
+                }`}
+              >
+                Deposit
+              </button>
+              <button
+                onClick={() => { setMode("withdraw"); setAmount(""); setError(""); }}
+                className={`flex-1 py-3 px-4 rounded-2xl font-bold text-sm transition-all ${
+                  mode === "withdraw"
+                    ? "bg-[#1a2fb8] text-white shadow-sm"
+                    : "text-[#6b7280] dark:text-gray-400 hover:bg-[#f9fafb] dark:hover:bg-gray-700"
+                }`}
+              >
+                Withdraw
+              </button>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-[#e5e9f0] dark:border-gray-700 flex flex-col gap-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Deposit Amount</label>
+                  <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">
+                    {mode === "deposit" ? "Deposit Amount" : "Withdraw Amount"}
+                  </label>
                   <button
                     onClick={handleMaxDeposit}
                     className="text-xs font-bold text-[#1a2fb8] dark:text-blue-400 hover:underline"
                     disabled={pricesLoading || currentPrice === 0}
                   >
-                    Max: {formatCryptoAmount(maxDepositCrypto, selectedCrypto)} {selectedCrypto}
+                    Max: {formatCryptoAmount(mode === "deposit" ? maxDepositCrypto : maxWithdrawCrypto, selectedCrypto)} {selectedCrypto}
                   </button>
                 </div>
                 
@@ -285,8 +392,8 @@ export default function DepositPage() {
             )}
 
             <button
-              onClick={handleDeposit}
-              disabled={loading || !isDepositValid}
+              onClick={mode === "deposit" ? handleDeposit : handleWithdraw}
+              disabled={loading || (mode === "deposit" ? !isDepositValid : !isWithdrawValid)}
               className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {txStatus === "pending" ? (
@@ -299,7 +406,7 @@ export default function DepositPage() {
                 </>
               ) : (
                 <>
-                  Deposit to Pool
+                  {mode === "deposit" ? "Deposit to Pool" : "Withdraw from Pool"}
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
                 </>
               )}
@@ -327,14 +434,24 @@ export default function DepositPage() {
               </div>
             </div>
 
-            <div className="bg-[#f0fdf4] rounded-3xl p-6 border border-[#bbf7d0] flex items-start gap-4">
-              <div className="w-10 h-10 bg-[#4ade80] rounded-xl flex items-center justify-center flex-shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#14532d"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+            <div className={`${mode === "deposit" ? "bg-[#f0fdf4] border-[#bbf7d0]" : "bg-[#fef3c7] border-[#fde68a]"} rounded-3xl p-6 border flex items-start gap-4`}>
+              <div className={`w-10 h-10 ${mode === "deposit" ? "bg-[#4ade80]" : "bg-[#fbbf24]"} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={mode === "deposit" ? "#14532d" : "#78350f"}>
+                  {mode === "deposit" ? (
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                  ) : (
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                  )}
+                </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-[#15803d] mb-1">Earn Yield on Deposits</p>
-                <p className="text-xs text-[#16a34a] leading-relaxed">
-                  Your deposits enable borrowers to access capital. Interest from loans will be distributed to lenders.
+                <p className={`text-sm font-bold ${mode === "deposit" ? "text-[#15803d]" : "text-[#92400e]"} mb-1`}>
+                  {mode === "deposit" ? "Earn Yield on Deposits" : "Withdraw Anytime"}
+                </p>
+                <p className={`text-xs ${mode === "deposit" ? "text-[#16a34a]" : "text-[#b45309]"} leading-relaxed`}>
+                  {mode === "deposit" 
+                    ? "Your deposits enable borrowers to access capital. Interest from loans will be distributed to lenders."
+                    : "Withdraw your funds anytime, subject to available pool liquidity. Your remaining balance will continue earning yield."}
                 </p>
               </div>
             </div>

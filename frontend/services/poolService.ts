@@ -159,51 +159,90 @@ export async function depositToPool(userId: string, amount: number, currency: st
 }
 
 // ─── WITHDRAW (maps to LendingPool.withdraw()) ───────────────────────────────
-export async function withdrawFromPool(userId: string, sharesToBurn: number): Promise<{ amount: number; txHash: string }> {
-  if (sharesToBurn <= 0) throw new Error("Shares must be greater than 0");
+// amount is in ETH (normalized), currency is for display/logging
+export async function withdrawFromPool(
+  userId: string, 
+  amountETH: number, 
+  currency: string = 'ETH', 
+  originalAmount?: number
+): Promise<string> {
+  if (amountETH <= 0) throw new Error("Amount must be greater than 0");
 
-  const pool = await getPoolStats();
-  const userShares = await getUserShares(userId);
-
-  if (sharesToBurn > userShares) throw new Error("Insufficient shares");
-
-  // amount = (shares * totalLiquidity) / totalShares
-  const amount = (sharesToBurn * pool.total_liquidity) / pool.total_shares;
-  const available = pool.total_liquidity - pool.total_borrowed;
-
-  if (amount > available) {
-    throw new Error(`Insufficient available liquidity. Available: ${available.toFixed(6)} ETH`);
+  // 1. Get user's total deposited amount
+  const userDeposited = await getUserTotalDeposited(userId);
+  if (amountETH > userDeposited) {
+    throw new Error(`Amount exceeds your deposited balance. Available: ${userDeposited.toFixed(6)} ETH`);
   }
 
+  // 2. Check pool liquidity
+  const pool = await getPoolStats();
+  const available = pool.total_liquidity - pool.total_borrowed;
+  if (amountETH > available) {
+    throw new Error(`Insufficient pool liquidity. Available: ${available.toFixed(6)} ETH`);
+  }
+
+  // 3. Calculate shares to burn
+  // shares = (amount * totalShares) / totalLiquidity
+  const sharesToBurn = (amountETH * pool.total_shares) / pool.total_liquidity;
+  const userShares = await getUserShares(userId);
+  
+  if (sharesToBurn > userShares) {
+    throw new Error("Insufficient shares");
+  }
+
+  // 4. Simulate transaction
   const txHash = await simulateTransaction("withdraw");
 
-  // Update pool
-  await supabase
+  // 5. Update pool: decrease liquidity and shares
+  const { error: poolError } = await supabase
     .from("pool")
     .update({
-      total_liquidity: pool.total_liquidity - amount,
+      total_liquidity: pool.total_liquidity - amountETH,
       total_shares: pool.total_shares - sharesToBurn,
     })
     .eq("id", 1);
+  if (poolError) throw new Error(poolError.message);
 
-  // Update user shares
-  await supabase
+  // 6. Update user shares
+  const { error: sharesError } = await supabase
     .from("user_shares")
-    .update({ shares: userShares - sharesToBurn, updated_at: new Date().toISOString() })
+    .update({ 
+      shares: userShares - sharesToBurn, 
+      updated_at: new Date().toISOString() 
+    })
     .eq("user_id", userId);
+  if (sharesError) throw new Error(sharesError.message);
 
-  // Return ETH to wallet
-  const { data: profile } = await supabase.from("profiles").select("wallet_balance").eq("id", userId).single();
-  await supabase.from("profiles").update({ wallet_balance: (profile?.wallet_balance ?? 0) + amount }).eq("id", userId);
+  // 7. Return ETH to wallet
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("wallet_balance")
+    .eq("id", userId)
+    .single();
+  
+  const { error: walletError } = await supabase
+    .from("profiles")
+    .update({ wallet_balance: (profile?.wallet_balance ?? 0) + amountETH })
+    .eq("id", userId);
+  if (walletError) throw new Error(walletError.message);
 
-  await supabase.from("transactions").insert([{
+  // 8. Log transaction
+  const { error: txError } = await supabase.from("transactions").insert([{
     user_id: userId,
     type: "withdraw",
-    amount,
+    currency: currency,
+    amount_original: originalAmount ?? amountETH,
+    amount_eth: amountETH,
+    amount: amountETH,
     tx_hash: txHash,
+    status: "success"
   }]);
+  if (txError) console.error("Transaction log failed:", txError.message);
 
-  return { amount, txHash };
+  // 9. Recalculate credit score
+  await recalculateCreditScore(userId);
+
+  return txHash;
 }
 
 // ─── INTERNAL: called by LoanManager ─────────────────────────────────────────
