@@ -10,6 +10,8 @@ import { getPoolStats } from "@/services/poolService";
 import { getReputation, getMaxLTV, getCreditTier, getScoreBreakdown } from "@/services/reputationService";
 import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
+import { getFraudProfile, type FraudProfile } from "@/services/fraudDetection";
+import { BlacklistBanner, FraudWarning } from "@/components/FraudBanner";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
 import { 
   CryptoSymbol, 
@@ -54,6 +56,7 @@ export default function RequestLoanPage() {
   const [creditTier, setCreditTier] = useState("Good");
   const [maxLTV, setMaxLTV] = useState(0.75);
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownType | undefined>(undefined);
+  const [fraudProfile, setFraudProfile] = useState<FraudProfile>({ fraud_score: 0, fraud_flags: [], fraud_count: 0, status: "ACTIVE" });
 
   // New state for multi-crypto
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoSymbol>('ETH');
@@ -83,6 +86,9 @@ export default function RequestLoanPage() {
         setCreditTier(getCreditTier(rep.credit_score));
         setMaxLTV(getMaxLTV(rep.credit_score));
         setScoreBreakdown(breakdown);
+
+        const fp = await getFraudProfile(user.id);
+        setFraudProfile(fp);
       } catch (err) {
         console.error(err);
       }
@@ -198,6 +204,12 @@ export default function RequestLoanPage() {
           </p>
         </div>
 
+        {/* Blacklist / Fraud warnings */}
+        {fraudProfile.status === "BLACKLISTED"
+          ? <BlacklistBanner />
+          : <FraudWarning riskLevel={fraudProfile.fraud_score >= 60 ? "High" : fraudProfile.fraud_score >= 30 ? "Medium" : "Low"} flags={fraudProfile.fraud_flags.slice(-3)} />
+        }
+
         {/* Enhanced Credit Score Display */}
         <div className="mb-5">
           <CreditScoreDisplay 
@@ -307,7 +319,7 @@ export default function RequestLoanPage() {
 
             <button
               onClick={handleSubmit}
-              disabled={loading || !amount || amountNum <= 0 || currentPrice === 0}
+              disabled={loading || !amount || amountNum <= 0 || currentPrice === 0 || fraudProfile.status === "BLACKLISTED"}
               className="w-full bg-[#1a2fb8] dark:bg-blue-600 text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] dark:hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {loading ? (

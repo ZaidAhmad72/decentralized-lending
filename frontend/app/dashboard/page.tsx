@@ -14,6 +14,8 @@ import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import { calculateHealthFactor, formatHealthFactor, getHealthFactorColor } from "@/services/creditScoreService";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
+import { getFraudProfile, type FraudProfile } from "@/services/fraudDetection";
+import { BlacklistBanner, FraudScoreCard } from "@/components/FraudBanner";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,6 +34,7 @@ export default function DashboardPage() {
   const [healthFactor, setHealthFactor] = useState<number>(Infinity);
   const [scoreDecay, setScoreDecay] = useState<number>(0);
   const [gasSaved, setGasSaved] = useState<number>(0);
+  const [fraudProfile, setFraudProfile] = useState<FraudProfile>({ fraud_score: 0, fraud_flags: [], fraud_count: 0, status: "ACTIVE" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -91,6 +94,9 @@ export default function DashboardPage() {
       
       setGasSaved((totalTx || 0) * 0.465);
 
+      const fp = await getFraudProfile(user.id);
+      setFraudProfile(fp);
+
       setLoading(false);
     };
     load();
@@ -129,6 +135,9 @@ export default function DashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
+
+        {/* Blacklist Banner */}
+        {fraudProfile.status === "BLACKLISTED" && <BlacklistBanner />}
 
         {/* Welcome */}
         <div className="mb-6">
@@ -270,6 +279,13 @@ export default function DashboardPage() {
 
             {/* Smart Wallet Card */}
             <WalletCard />
+
+            {/* Fraud Risk Card */}
+            <FraudScoreCard
+              score={fraudProfile.fraud_score}
+              fraudCount={fraudProfile.fraud_count}
+              status={fraudProfile.status}
+            />
 
             {/* Desktop: quick stats panel */}
             <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#e5e9f0] dark:border-gray-700 mt-1">
