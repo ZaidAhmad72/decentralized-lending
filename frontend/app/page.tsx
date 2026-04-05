@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import { gsap } from "gsap";
 
 function InputField({
   label, icon, children,
@@ -26,6 +27,23 @@ function InputField({
 export default function AuthPage() {
   const router = useRouter();
   const supabase = createClient();
+
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) return;
+
+    const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+    if (leftPanelRef.current) {
+      tl.fromTo(leftPanelRef.current, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6 });
+    }
+    if (formRef.current) {
+      tl.fromTo(formRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5 }, "-=0.3");
+    }
+  }, []);
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -107,7 +125,7 @@ export default function AuthPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col lg:flex-row transition-colors">
 
       {/* ── Left panel — branding (desktop only) ── */}
-      <div className="hidden lg:flex lg:w-[45%] xl:w-[40%] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 flex-col justify-between p-12 relative overflow-hidden">
+      <div ref={leftPanelRef} className="hidden lg:flex lg:w-[45%] xl:w-[40%] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 flex-col justify-between p-12 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/5 rounded-full" />
@@ -149,7 +167,7 @@ export default function AuthPage() {
 
       {/* ── Right panel — form ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 lg:py-0">
-        <div className="w-full max-w-md">
+        <div ref={formRef} className="w-full max-w-md">
 
           {/* Mobile logo */}
           <div className="flex items-center justify-between mb-8 lg:hidden">

@@ -17,6 +17,8 @@ import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScor
 import { createClient as createSupabaseClient } from "@/utils/supabase/client";
 import { getFraudProfile, type FraudProfile } from "@/services/fraudDetection";
 import { BlacklistBanner, FraudScoreCard } from "@/components/FraudBanner";
+import { useStaggerFadeUp, useFadeUp } from "@/hooks/useGsapAnimation";
+import PageTransition from "@/components/PageTransition";
 
 // Fetch active private pool loans for the user (filter out dust loans < 0.00001 ETH)
 async function getUserActivePrivateLoans(userId: string) {
@@ -124,6 +126,10 @@ export default function DashboardPage() {
     ? Math.max(0, Math.ceil((new Date(activeLoan.due_date).getTime() - Date.now()) / 86400000))
     : 0;
 
+  // Animation refs — fire after data loads
+  const statsRef = useStaggerFadeUp([loading]);
+  const actionsRef = useFadeUp([loading]);
+
   const poolLiquidityINR = ethToINR(poolStats.total_liquidity, ethPrice);
   const poolBorrowedINR = ethToINR(poolStats.total_borrowed, ethPrice);
   const availableLiquidityINR = poolLiquidityINR - poolBorrowedINR;
@@ -144,7 +150,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] dark:bg-slate-950 pb-24 lg:pb-10 lg:pt-20 transition-colors">
+    <PageTransition className="min-h-screen bg-[#f0f4f8] dark:bg-slate-950 pb-24 lg:pb-10 lg:pt-20 transition-colors">
 
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between px-5 pt-10 pb-4">
@@ -171,7 +177,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 mb-6">
-          <div className="flex flex-col gap-4 lg:flex-1">
+          <div ref={statsRef} className="flex flex-col gap-4 lg:flex-1">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
               {/* Pool Liquidity */}
@@ -293,7 +299,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          <div className="flex flex-col gap-3 lg:w-72 lg:flex-shrink-0">
+          <div ref={actionsRef} className="flex flex-col gap-3 lg:w-72 lg:flex-shrink-0">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white hidden lg:block">Quick Actions</h2>
 
             <button onClick={() => router.push("/deposit")}
@@ -374,7 +380,7 @@ export default function DashboardPage() {
         walletAddress: walletAddress ?? undefined,
       }} />
       <Navbar />
-    </div>
+    </PageTransition>
   );
 }
 

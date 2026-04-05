@@ -1,9 +1,11 @@
 ﻿"use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import { gsap } from "gsap";
 
 const TABS = [
   { label: "Home",    path: "/dashboard",          icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>) },
@@ -20,6 +22,15 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) return;
+    gsap.fromTo(el, { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" });
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -31,7 +42,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop top navbar ── */}
-      <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 shadow-sm items-center justify-between px-8 h-16 transition-all">
+      <nav ref={navRef} className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 shadow-sm items-center justify-between px-8 h-16 transition-all">
         {/* Logo */}
         <button
           onClick={() => router.push("/dashboard")}
