@@ -236,8 +236,8 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* Password (Signup mode only OR Login mode before OTP sent) */}
-        {(mode === "signup" || (mode === "login" && !otpSent)) && (
+        {/* Password (Signup mode only) */}
+        {mode === "signup" && (
           <div className="mb-4">
             <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
               Password
