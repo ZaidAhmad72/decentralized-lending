@@ -17,6 +17,9 @@ export default function AuthPage() {
   const [age, setAge] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   const handleSubmit = async () => {
     setError("");
@@ -25,12 +28,12 @@ export default function AuthPage() {
       setError("Please enter a valid email address.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
 
     if (mode === "signup") {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
       if (!name.trim()) { setError("Please enter your name."); return; }
       if (!age || Number(age) < 18) { setError("Age must be 18 or older."); return; }
     }
@@ -38,6 +41,7 @@ export default function AuthPage() {
     setLoading(true);
 
     if (mode === "signup") {
+      // Signup with password (no OTP)
       const { data, error: signUpError } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -79,15 +83,22 @@ export default function AuthPage() {
       }
 
     } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      // Login with OTP (no password)
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+        }
+      });
 
-      if (signInError) {
-        setError("Invalid email or password.");
+      if (otpError) {
+        setError("Failed to send OTP. Please check your email and try again.");
         setLoading(false);
         return;
       }
 
-      router.push("/dashboard");
+      setOtpSent(true);
+      setError("OTP sent! Check your email.");
     }
     setLoading(false);
   };
@@ -104,7 +115,7 @@ export default function AuthPage() {
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email,
       token: otp,
-      type: mode === "signup" ? "signup" : "email",
+      type: "email",
     });
 
     if (verifyError) {
@@ -142,6 +153,8 @@ export default function AuthPage() {
     setMode(mode === "login" ? "signup" : "login");
     setError("");
     setPassword("");
+    setOtpSent(false);
+    setOtp("");
   };
 
   return (
@@ -164,7 +177,9 @@ export default function AuthPage() {
           </h1>
           <p className="text-[#6b7280] dark:text-gray-400 text-base leading-relaxed">
             {mode === "login"
-              ? "Log in to access your decentralized assets."
+              ? otpSent 
+                ? "Enter the OTP sent to your email."
+                : "We'll send a one-time code to your email."
               : "Sign up to get started on Vault."}
           </p>
         </div>
@@ -184,31 +199,65 @@ export default function AuthPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
-              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
+              disabled={otpSent && mode === "login"}
+              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent disabled:opacity-50"
             />
           </div>
         </div>
 
-        {/* Password */}
-        <div className="mb-4">
-          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-            Password
-          </label>
-          <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-            </svg>
-            <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder="Enter your password"
-              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
-            />
+        {/* OTP Input (Login mode only, after OTP sent) */}
+        {mode === "login" && otpSent && (
+          <div className="mb-4">
+            <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
+              Enter OTP
+            </label>
+            <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+              </svg>
+              <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                placeholder="6-digit code"
+                maxLength={6}
+                className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent tracking-widest"
+              />
+            </div>
+            <button
+              onClick={handleResendOtp}
+              disabled={loading}
+              className="text-sm text-[#1a2fb8] dark:text-blue-400 font-semibold mt-2 hover:underline disabled:opacity-50"
+            >
+              Resend OTP
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* Password (Signup mode only OR Login mode before OTP sent) */}
+        {(mode === "signup" || (mode === "login" && !otpSent)) && (
+          <div className="mb-4">
+            <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
+              Password
+            </label>
+            <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+              </svg>
+              <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                placeholder="Enter your password"
+                className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Signup-only fields */}
         {mode === "signup" && (
@@ -256,12 +305,14 @@ export default function AuthPage() {
 
         {/* Submit */}
         <button
-          onClick={handleSubmit}
-          disabled={loading}
+          onClick={mode === "login" && otpSent ? handleVerifyOtp : handleSubmit}
+          disabled={loading || verifying}
           className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 mb-4 disabled:opacity-70"
         >
-          {loading ? "Please wait..." : mode === "login" ? "Log In" : "Sign Up"}
-          {!loading && (
+          {loading || verifying ? "Please wait..." : 
+           mode === "login" && otpSent ? "Verify OTP" :
+           mode === "login" ? "Send OTP" : "Sign Up"}
+          {!loading && !verifying && (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
               <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
             </svg>
@@ -292,10 +343,12 @@ export default function AuthPage() {
           </div>
           <div>
             <p className="text-xs font-bold text-[#16a34a] tracking-widest uppercase mb-1">
-              Institutional Security
+              {mode === "login" ? "Two-Factor Authentication" : "Institutional Security"}
             </p>
             <p className="text-sm text-[#374151] dark:text-gray-300 leading-relaxed">
-              Your identity is verified on-chain. Secure, private, and non-custodial.
+              {mode === "login" 
+                ? "Enhanced security with email-based OTP verification."
+                : "Your identity is verified on-chain. Secure, private, and non-custodial."}
             </p>
           </div>
         </div>
