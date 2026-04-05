@@ -14,6 +14,7 @@ import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import { calculateHealthFactor, formatHealthFactor, getHealthFactorColor } from "@/services/creditScoreService";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
+import { BlacklistBanner, FraudScoreBadge } from "@/components/FraudAlert";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,6 +33,8 @@ export default function DashboardPage() {
   const [healthFactor, setHealthFactor] = useState<number>(Infinity);
   const [scoreDecay, setScoreDecay] = useState<number>(0);
   const [gasSaved, setGasSaved] = useState<number>(0);
+  const [fraudScore, setFraudScore] = useState(0);
+  const [fraudStatus, setFraudStatus] = useState<"ACTIVE" | "BLACKLISTED">("ACTIVE");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -91,6 +94,18 @@ export default function DashboardPage() {
       
       setGasSaved((totalTx || 0) * 0.465);
 
+      // Fetch fraud profile
+      const fraudRes = await fetch("/api/fraud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, action: { type: "transaction" } }),
+      });
+      if (fraudRes.ok) {
+        const fd = await fraudRes.json();
+        setFraudScore(fd.fraudScore ?? 0);
+        setFraudStatus(fd.status ?? "ACTIVE");
+      }
+
       setLoading(false);
     };
     load();
@@ -129,6 +144,9 @@ export default function DashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
+
+        {/* Blacklist Banner */}
+        {fraudStatus === "BLACKLISTED" && <BlacklistBanner />}
 
         {/* Welcome */}
         <div className="mb-6">
@@ -278,8 +296,7 @@ export default function DashboardPage() {
                 {[
                   { label: "Credit Score", value: `${creditScore} / 1000` },
                   { label: "Credit Tier", value: creditTier },
-                  { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },
-                  { 
+                  { label: "Max LTV", value: `${(maxLTV * 100).toFixed(0)}%` },                  { 
                     label: "Health Factor", 
                     value: formatHealthFactor(healthFactor),
                     color: getHealthFactorColor(healthFactor)
@@ -303,6 +320,11 @@ export default function DashboardPage() {
                     <span className={`text-sm font-bold capitalize ${s.color || "text-[#111827] dark:text-white"}`}>{s.value}</span>
                   </div>
                 ))}
+                {/* Fraud Risk row */}
+                <div className="flex justify-between items-center pt-1 border-t border-[#e5e9f0] dark:border-gray-700">
+                  <span className="text-sm text-[#6b7280] dark:text-gray-400">Fraud Risk</span>
+                  <FraudScoreBadge score={fraudScore} />
+                </div>
               </div>
             </div>
           </div>

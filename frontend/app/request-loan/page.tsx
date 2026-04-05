@@ -10,6 +10,8 @@ import { getPoolStats } from "@/services/poolService";
 import { getReputation, getMaxLTV, getCreditTier, getScoreBreakdown } from "@/services/reputationService";
 import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
+import { BlacklistBanner, DailyLimitWarning, FraudFlagsWarning } from "@/components/FraudAlert";
+import { DAILY_LOAN_LIMIT, type FraudFlag } from "@/lib/fraud";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
 import { 
   CryptoSymbol, 
@@ -55,6 +57,11 @@ export default function RequestLoanPage() {
   const [maxLTV, setMaxLTV] = useState(0.75);
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownType | undefined>(undefined);
 
+  // Fraud state
+  const [fraudStatus, setFraudStatus] = useState<"ACTIVE" | "BLACKLISTED">("ACTIVE");
+  const [loansToday, setLoansToday] = useState(0);
+  const [fraudFlags, setFraudFlags] = useState<FraudFlag[]>([]);
+
   // New state for multi-crypto
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoSymbol>('ETH');
   const [cryptoPrices, setCryptoPrices] = useState<Record<CryptoSymbol, number>>({} as any);
@@ -83,6 +90,18 @@ export default function RequestLoanPage() {
         setCreditTier(getCreditTier(rep.credit_score));
         setMaxLTV(getMaxLTV(rep.credit_score));
         setScoreBreakdown(breakdown);
+
+        // Fraud check on page load
+        const fraudRes = await fetch("/api/fraud", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, action: { type: "transaction" } }),
+        });
+        if (fraudRes.ok) {
+          const fd = await fraudRes.json();
+          setFraudStatus(fd.status ?? "ACTIVE");
+          setLoansToday(fd.loansToday ?? 0);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -161,12 +180,34 @@ export default function RequestLoanPage() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/");
-        return;
+      if (!user) { router.push("/"); return; }
+
+      // Run fraud check before borrowing
+      const fraudRes = await fetch("/api/fraud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          action: { type: "loan_request", amount: amountETH },
+        }),
+      });
+      if (fraudRes.ok) {
+        const fd = await fraudRes.json();
+        setFraudStatus(fd.status);
+        setLoansToday(fd.loansToday ?? 0);
+        setFraudFlags(fd.flags ?? []);
+        if (fd.status === "BLACKLISTED") {
+          setError("Your account has been restricted due to suspicious activity.");
+          setLoading(false);
+          return;
+        }
+        if (fd.dailyLimitReached) {
+          setError("Daily loan limit reached (3 loans per day). Try again tomorrow.");
+          setLoading(false);
+          return;
+        }
       }
-      
-      // Convert to ETH for backend
+
       await borrowFromPool(user.id, amountETH, selectedDays);
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -197,6 +238,13 @@ export default function RequestLoanPage() {
             Available: {formatINR(availableLiquidityINR)} · Your limit: {formatINR(maxBorrowINR)}
           </p>
         </div>
+
+        {/* Fraud / limit alerts */}
+        {fraudStatus === "BLACKLISTED" && <BlacklistBanner />}
+        {fraudStatus !== "BLACKLISTED" && loansToday > 0 && (
+          <DailyLimitWarning loansToday={loansToday} limit={DAILY_LOAN_LIMIT} />
+        )}
+        {fraudFlags.length > 0 && <FraudFlagsWarning flags={fraudFlags} />}
 
         {/* Enhanced Credit Score Display */}
         <div className="mb-5">
@@ -307,7 +355,7 @@ export default function RequestLoanPage() {
 
             <button
               onClick={handleSubmit}
-              disabled={loading || !amount || amountNum <= 0 || currentPrice === 0}
+              disabled={loading || !amount || amountNum <= 0 || currentPrice === 0 || fraudStatus === "BLACKLISTED" || loansToday >= DAILY_LOAN_LIMIT}
               className="w-full bg-[#1a2fb8] dark:bg-blue-600 text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] dark:hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {loading ? (
