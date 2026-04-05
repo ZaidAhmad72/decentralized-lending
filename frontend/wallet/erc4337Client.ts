@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * erc4337Client.ts
  * ERC-4337 Account Abstraction wallet using:

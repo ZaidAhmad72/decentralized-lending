@@ -13,6 +13,8 @@ import {
   type PoolTrustScore,
 } from "./antiAbuseService";
 
+export type { PoolTrustScore };
+
 const supabase = createClient();
 
 const DAILY_RATE = 0.005; // 0.005% per day = ~1.8% per year (friendly pool rate)

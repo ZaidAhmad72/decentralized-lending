@@ -343,8 +343,8 @@ export default function DepositPage() {
                   </div>
                   
                   {/* Risk Badge */}
-                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${RISK_COLORS[CRYPTO_CONFIGS[selectedCrypto].risk]}`}>
-                    {RISK_LABELS[CRYPTO_CONFIGS[selectedCrypto].risk]}
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${RISK_COLORS[CRYPTO_CONFIGS[selectedCrypto].riskCategory]}`}>
+                    {RISK_LABELS[CRYPTO_CONFIGS[selectedCrypto].riskCategory]}
                   </span>
                 </div>
 

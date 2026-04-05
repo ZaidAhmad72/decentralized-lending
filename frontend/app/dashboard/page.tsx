@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const supabase = createClient();
   const { balance: walletBalance, address: walletAddress } = useWallet();
 
-  const [profile, setProfile] = useState({ name: "" });
+  const [profile, setProfile] = useState<{ name: string; wallet_balance?: number }>({ name: "" });
   const [activeLoan, setActiveLoan] = useState<Loan | null>(null);
   const [poolStats, setPoolStats] = useState({ total_liquidity: 0, total_borrowed: 0 });
   const [userDeposited, setUserDeposited] = useState(0);
@@ -110,7 +110,7 @@ export default function DashboardPage() {
 
       // Fetch active private pool loans
       const pLoans = await getUserActivePrivateLoans(user.id);
-      setPrivateLoans(pLoans as typeof privateLoans);
+      setPrivateLoans(pLoans as unknown as typeof privateLoans);
 
       const fp = await getFraudProfile(user.id);
       setFraudProfile(fp);
