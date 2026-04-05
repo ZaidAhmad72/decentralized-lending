@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
       const { data: prof } = await supabase
         .from("profiles")
-        .select("name")
+        .select("name, wallet_balance")
         .eq("id", user.id)
         .single();
 
