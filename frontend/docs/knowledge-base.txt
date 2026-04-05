@@ -1,0 +1,121 @@
+DOCUMENT: Executive Summary — Chatbot Knowledge Base Pipeline
+
+== SECTION: Document Ingestion ==
+Supported formats: Use libraries like Apache Tika or custom parsers to ingest common formats: plain text, HTML/Markdown, DOC/DOCX, PDF, PPT, images, audio transcripts. Modern ingestion pipelines support .txt, .docx, .pdf, .md, .html, and can be extended for others. For images or scanned PDFs, apply OCR tools (e.g. Tesseract OSS, Google Vision, AWS Textract) to extract text. Scanned documents require OCR pre-processing. All parsed text should be checked/converted to a consistent encoding (UTF-8) and cleaned of artifacts (removing headers, footers, page numbers, watermarks) before further processing.
+
+Handling scanned or handwritten content: Beyond OCR, specialized models (e.g. Amazon Bedrock, Azure OCR) can detect handwritten or structured forms. Record any OCR confidence scores to flag low-confidence chunks for manual review. Integrate a fallback for manual entry of failed OCR if needed. Store each source document's raw text or original file path as metadata for traceability.
+
+== SECTION: Metadata Extraction ==
+Extract descriptive metadata from each file: filename, file type/size, creation/modification dates, authors, language, document structure (sections, headings), and any embedded tags. For example, PDF/XMP metadata or HTML meta tags. Record provenance for each snippet (source document ID, page/section references) to cite sources later. As part of ingestion, generate and store a metadata record linking chunks to their origin (file path, offsets). This enables debugging and precise answer citation in the chatbot.
+
+Recommended metadata fields: file_id, filename, file_type, created_on, author, language, section_heading, paragraph_offset, tags (category, source, confidentiality).
+
+== SECTION: Text Parsing and Normalization ==
+Normalize all text snippets after extraction. First, detect language (e.g. langdetect or FastText) and encoding; assume UTF-8 and convert if needed. Remove non-textual elements (images, HTML tags) and normalize whitespace. Then apply standard NLP preprocessing: sentence segmentation and tokenization. Libraries like spaCy or NLTK can perform sentence splitting and tokenization. Ensure consistent treatment of punctuation and special characters. Handle text direction (RTL vs LTR), Unicode normalization (NFC/NFKC), and fix encoding issues. Optionally lemmatize or lowercase tokens if building lexical indexes or for certain entity models.
+
+== SECTION: Entity and Intent Extraction ==
+Run a Named Entity Recognition (NER) step on each text chunk to label entities (people, organizations, dates, domain-specific terms). Tools: pre-trained spaCy or HuggingFace models for general NER; for domain entities train custom NER models using spaCy or HuggingFace Transformers. Maintain a list of custom entity types relevant to your chatbot's domain. Use confidence thresholds: discard entity tags below a threshold (e.g. 0.7), or flag them for human review. Open-source NLU platforms (Rasa, LUIS) also output confidence scores for extracted intents/entities.
+
+For intent detection on incoming user queries, train a classifier (e.g. with Rasa, AWS LEX, or BERT) to identify query intent. Keep a fallback for low-confidence: if the intent score is below a threshold (e.g. 0.5), have the bot ask clarifying questions or route to a general knowledge intent.
+
+== SECTION: Knowledge Snippet Creation ==
+Split each document into snippets (chunks) of appropriate granularity. Chunk size is a key trade-off: too large (>1000 tokens) dilutes focus; too small (<200 tokens) loses context. Industry practice suggests ~400-600 token chunks with 50-100 token overlaps between adjacent chunks. Experiment with fixed-size (character/word count) chunks vs. semantic chunking (splitting at topic boundaries). Semantic chunking yields coherent passages but is costlier.
+
+Deduplication/Canonicalization: Remove duplicate chunks across documents (via hashing) and normalize formatting. Canonicalize dates, numbers, and synonyms. Link related chunks. Ensure each chunk has a unique ID and attached metadata (source, chunk number, section heading). Store the provenance (source file, page or section name) with each snippet to enable answer citation.
+
+Example snippet schema: { "snippet_id": "doc1_chunk3", "source": "policy_manual.pdf", "section": "Lending Policy", "text": "The core lending system allows users to borrow against ...", "entities": ["core lending", "lenders", "borrowers"], "embedding": [...], "created_at": "2026-04-01T12:34:56Z" }
+
+== SECTION: Mapping to Chatbot Artifacts ==
+Design how each knowledge snippet can trigger chatbot responses. If using a slot/intents architecture (e.g. Rasa, Lex), map common queries to intents and slots filled from snippet content. For example, from a product FAQ doc you might extract an intent ask_product_feature with slot product_name, filling the answer from the snippet text. Build response templates that incorporate snippet text or slot values.
+
+Alternatively, use a hybrid retrieval approach: at query time use vector search to retrieve relevant snippets and feed them into a generative LLM prompt (RAG). In this retrieval-augmented generation model, the chatbot template is essentially the LLM system prompt. The bot then generates answers grounded in snippet content. For factual Q&A, templates with snippet insertion yield reliable answers with built-in citations; for open-ended or complex queries, generative RAG provides flexibility.
+
+== SECTION: Embedding Strategy ==
+Choose an embedding model suited to your text. Popular options include OpenAI's models (e.g. text-embedding-3-small, 1536 dimensions), HuggingFace sentence transformers (e.g. all-MiniLM-L6-v2 at 384D), or proprietary vectors. Higher dimensions can capture nuance but cost more storage and compute. Embeddings typically range 256-1536D depending on model.
+
+Apply embeddings to each chunk. For long contexts, use chunking to fit the model's max tokens. Consider hierarchical or late embedding if you need cross-chunk coherence. Overlap embedding retains context at edges. Experiment with semantic vs. lexical encoding: generate sparse vectors (BM25/TF-IDF) for lexical search and dense vectors for semantics, then combine results (hybrid search). Use a consistent strategy across all documents.
+
+== SECTION: Indexing and Search ==
+Store all snippet embeddings in a vector index. Key options: FAISS (OSS, Python/C++, in-memory/index-on-disk), Milvus (OSS, distributed, persistent), Weaviate (OSS, GraphQL interface, hybrid search), Qdrant (OSS, Rust, JSON filtering), Pinecone (SaaS, managed, auto-scaling).
+
+Choose an ANN algorithm: HNSW works well for dynamic inserts and high recall. IVF-PQ (as in FAISS) is efficient for static, massive corpora. For hybrid search, maintain a sparse index (e.g. BM25/Elasticsearch) in parallel, or use a DB that natively supports both (Weaviate does via BM25). Use metadata filtering (facets) to narrow search: e.g. filter by document category or date. Most vector DBs support SQL-like or GraphQL filtering on stored metadata.
+
+Persist the index (disk snapshots or a DB with vector support) and link vector IDs to your snippet IDs in metadata. Monitor index health and periodically rebuild or prune old vectors as data evolves.
+
+== SECTION: Evaluation and Validation ==
+Measure coverage and accuracy of your knowledge base. Key metrics: retrieval accuracy (Recall@K: fraction of test queries whose relevant snippet is in top-K results), and answer quality (F1/accuracy on a held-out QA set). For retrieval, use benchmarks like BEIR or KILT (e.g. NaturalQuestions, TriviaQA) as proxies, or create domain-specific Q&A pairs. Track answer faithfulness: how often does the chatbot's response factually match the source (could use RAGAS or RAGTruth frameworks).
+
+Perform end-to-end QA tests: feed real user questions and score responses for correctness, relevance, and source citation correctness. Suggested threshold: >80-90% of questions answered correctly in tests. Use human-in-the-loop review for ambiguous cases. Monitor query coverage: the fraction of incoming questions that retrieve any relevant snippet above a similarity threshold.
+
+Recommended metrics: Recall@5 >= 80%, answer F1 >= 90%, citation accuracy >= 95%.
+
+== SECTION: Privacy and Security ==
+Implement PII and sensitive data controls. Automatically detect and redact PII (names, SSNs, emails) in ingestion. Use regex and ML-based detectors (Azure/Google/AWS have PII detection APIs) or Amazon Bedrock Guardrails. Keep a log of redacted content for auditing (but never store unredacted PII longer than needed).
+
+Enforce access controls on the knowledge store: use role-based access (RBAC) so only authorized components/users can read or write embeddings/text. Always encrypt data at rest (e.g. disk-level encryption, encrypted managed vector DB) and in transit (TLS for APIs). Define data retention policies: e.g. refresh or delete document chunks older than 5 years or when documents are decommissioned. Purge all related data upon user request if required by GDPR/CCPA.
+
+== SECTION: Scalability and Performance ==
+Design for scale. For a large corpus (millions of docs), batch parallel ingestion is essential. Use distributed processing frameworks (e.g. Ray Data, Apache Spark, Airflow) to read and process files in parallel. For example, split files among worker nodes: each worker parses, chunks, embeds, and writes vectors independently. The Ray tutorial demonstrates splitting a 1M-document job across 100 workers to reduce processing from ~41 days to ~10 hours.
+
+Use batch or streaming ingestion based on update patterns. For static legacy content, run a one-time bulk job. For ongoing updates (new documents), consider a streaming approach (e.g. watch a file drop bucket or use a message queue). Parallelize embedding calls in batches. Configure workers to use GPUs for embedding if available, and vector DBs with sharding across nodes.
+
+== SECTION: Error Handling and Logging ==
+Implement robust error capture at every stage. If a document fails to parse or OCR, log the error with context (filename, error message) and continue ingesting others. Wrap each file's processing in a try/catch that logs failures and returns a status. Do not let one bad file halt the pipeline. On recoverable errors (e.g. transient API failure), implement retries with backoff.
+
+Log all key events: ingestion start/end times, number of chunks created, embeddings generated, index writes, and query results. Use structured logs (e.g. JSON) so they can be aggregated. Include the snippet ID or document ID in logs to trace problems. Maintain an audit trail: every time the chatbot retrieves a snippet or generates an answer, log which snippet IDs were used.
+
+== SECTION: Recommended Tooling ==
+Apache Tika: Document Parser, Apache 2.0 OSS. Supports many formats (PDF, Word, HTML), extracts text and metadata. May mis-parse complex PDFs. Best for ingestion layer for multi-format corpora.
+
+Tesseract OCR: OCR Engine, Apache 2.0 OSS. High-quality OCR, multi-language support. Requires good image preprocessing; can be slow on large docs. Best for scanned PDFs and images.
+
+spaCy: NLP Pipeline (NER), MIT OSS. Fast NER/lemmatization/tokenization; customizable with own models. General models limited to standard entity types; training needed for domain-specific NER. Best for entity extraction and tokenization.
+
+OpenAI Embeddings: Embedding API, Proprietary SaaS. State-of-the-art semantic embeddings (1536D+). Usage cost; cloud API latency and privacy considerations. Best for high-quality semantic search on English text.
+
+Pinecone: Vector DB SaaS, Closed-source Proprietary. Fully managed, auto-scaling, simple API, SLA-backed. Supports metadata filtering. Vendor lock-in; pricing can be high at scale. Best for teams wanting turnkey vector search with minimal ops overhead.
+
+Qdrant: Vector DB, Apache 2.0 OSS. Persistent on-disk, HNSW/PQ support, flexible JSON filters. Relatively younger ecosystem, fewer cloud integrations. Best for projects needing custom filtering or self-hosted vector DB.
+
+Weaviate: Vector DB, Apache 2.0 OSS. Built-in schema, hybrid (sparse+dense) search, GraphQL API. Requires schema design, might be heavy for simple cases. Best for use cases requiring hybrid search and rich metadata models.
+
+FAISS: ANN Library, BSD OSS. Extremely fast vector search, many index options (IVF, HNSW). No built-in metadata or distributed storage; in-memory by default. Best for prototyping/embedding DB for developers; custom indexing.
+
+== SECTION: Data Schemas ==
+Example knowledge snippet schema (JSON/NoSQL style): { "snippet_id": "doc1_chunk3", "source_doc": "UserGuide.pdf", "source_section": "Installation", "text": "To install the product, download the installer and run...", "language": "en", "entities": [{"type":"Software","text":"product"}], "intents": ["installation_query"], "embedding": [...], "tags": {"doc_type":"manual","author":"Jane Doe","version":"v2.1"}, "created_at": "2026-04-01T12:34:56Z" }
+
+snippet_id is unique; source_doc links back to the document; text holds the chunk; entities/intents list tags extracted; embedding is the vector; tags is arbitrary metadata for filtering.
+
+== SECTION: Document to Chatbot Mapping Examples ==
+Policy PDF (Lending_Policy.pdf): Entities: loan types, durations, interest rates. Intent: ask_policy_detail, Slot: policy_field. Response Template: "The lending policy states that the interest rate is {interest_rate}% per annum."
+
+Product FAQ Markdown: Entities: product features, versions. Intent: faq_query, Slot: product_feature. Template: "According to the documentation, {product_feature} works as follows: {snip_text}."
+
+CSV Financial Report: Entities: quarter, revenue, expense. Intent: ask_financials, Slots: quarter, metric. Template: "For Q{quarter}, the {metric} was ${value} million."
+
+HR Policy Word Doc: Entities: leave types, eligibility criteria. Intent: ask_leave_policy, Slot: leave_type. Template: "The {leave_type} leave is granted for {eligibility_criteria}."
+
+Meeting Transcript: Entities: meeting topics, decisions. Intent: meeting_followup, Slot: topic. Template: "During the meeting, it was decided that {topic} will proceed with action: {decision_snippet}."
+
+== SECTION: Evaluation Metrics and Thresholds ==
+Retrieval Accuracy (Recall@K): Recall@5 >= 80% - fraction of queries with a correct snippet in top 5.
+Answer Quality: F1 >= 90% on held-out Q&A pairs.
+Citation Accuracy: >= 95% of answers should cite the correct source snippet/document.
+User Satisfaction: >90% of users rating answers as correct/clear.
+Latency: Average query time <500ms for search + generation.
+Coverage: % of user queries answered at all by the bot. If <70%, consider expanding the KB.
+Drift Indicators: Alert if metrics fall >20% from baseline.
+
+== SECTION: Implementation Timeline ==
+Phase 1 - Ingestion and Parsing (May 2026): File inventory and ingestion setup (5 days), OCR/PDF processing implementation (10 days), Metadata extraction routines (5 days).
+Phase 2 - NLP and Chunking (May-June 2026): Language detection and normalization (5 days), Tokenization and sentence splitting (4 days), Entity/intent model training (10 days), Document chunking strategy (7 days).
+Phase 3 - Embeddings and Indexing (June-July 2026): Embedding model selection and tuning (5 days), Vector DB setup and schema (7 days), Ingest embeddings into index (7 days).
+Phase 4 - Integration and Testing (July-August 2026): QA pipeline integration RAG engine (10 days), End-to-end testing and validation (10 days), Pilot launch and feedback collection (7 days).
+
+== SECTION: Recommendations and Next Steps ==
+1. Prototyping: Start with a small set of files (PDFs, text) to validate each pipeline step. Use readily available tools (Tika+spaCy+FAISS) to get an initial RAG system working.
+2. Quality Iteration: Based on prototype results, tune chunking size, embed model, and similarity thresholds. Implement the evaluation metrics above on real user questions.
+3. Scaling: Migrate components to production-ready services (vector DB like Pinecone/Qdrant, managed OCR/embedding APIs) and set up parallel processing (e.g. Ray or Airflow) for large data.
+4. Security Review: Audit the pipeline for PII handling, ensure encryption and access controls are in place. Incorporate the PII redaction step early.
+5. User Testing: Collect real Q&A examples from users to refine intents and slot mappings. Run blind user tests before full deployment.
+6. Monitoring: Deploy logging and performance dashboards now, not later, to catch pipeline bottlenecks and answer quality issues.
