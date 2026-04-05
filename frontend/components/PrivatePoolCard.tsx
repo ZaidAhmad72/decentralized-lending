@@ -19,6 +19,7 @@ import {
 } from "@/utils/cryptoPriceService";
 import { cryptoToETH } from "@/utils/cryptoConverter";
 import { useWallet } from "@/wallet/walletHooks";
+import { showToast } from "@/components/Toast";
 
 interface Props {
   pool: PrivatePool;
@@ -191,6 +192,7 @@ export default function PrivatePoolCard({ pool: initialPool, userId, onDeleted }
       await depositToPrivatePool(userId, pool.id, amtETH);
       // No optimistic update — refreshPoolOnly fetches real value from server
       showMsg(`✅ Deposited ${formatCryptoAmount(amt, selectedCrypto)} ${selectedCrypto} (≈ ${formatINR(depositINR)})`);
+      showToast("success", "Deposit Successful!", `${formatCryptoAmount(amt, selectedCrypto)} ${selectedCrypto} added to ${pool.pool_name}.`);
       setDepositAmount("");
       await refreshWallet();
       await new Promise((r) => setTimeout(r, 500));
@@ -215,11 +217,9 @@ export default function PrivatePoolCard({ pool: initialPool, userId, onDeleted }
         : borrowCurrency === "INR"
           ? formatINR(parseFloat(borrowAmount))
           : "$" + parseFloat(borrowAmount).toFixed(2);
-      let msg = `✅ Borrowed ${displayAmt}`;
-      if (creditWeight === 0) msg += " (no credit impact — abuse filter)";
-      else if (creditWeight < 0.1) msg += ` (${(creditWeight * 100).toFixed(0)}% credit weight)`;
-      if (flags.length > 0) msg += ` [${flags.join(", ")}]`;
-      showMsg(msg);
+      // Clean success message — no debug flags
+      showMsg("✅ " + displayAmt + " borrowed successfully");
+      showToast("success", "Loan Approved!", displayAmt + " transferred to your wallet from " + pool.pool_name + ".");
       setBorrowAmount("");
       await refreshWallet();
       // Wait for DB to commit, then fetch fresh from server
@@ -254,6 +254,7 @@ export default function PrivatePoolCard({ pool: initialPool, userId, onDeleted }
 
       setPool((prev) => ({ ...prev, total_borrowed: Math.max(0, prev.total_borrowed - (amtToRepay ?? loanAmt)) }));
       showMsg("✅ Repaid " + (amtToRepay ? fmtAmt(amtToRepay) : fmtAmt(loanAmt)));
+      showToast("success", "Loan Repaid!", (amtToRepay ? fmtAmt(amtToRepay) : fmtAmt(loanAmt)) + " repaid to " + pool.pool_name + ".");
       setRepayInput("");
       await refreshWallet();
       await new Promise((r) => setTimeout(r, 500));

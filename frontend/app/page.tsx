@@ -6,6 +6,23 @@ import { createClient } from "@/utils/supabase/client";
 import GoogleTranslateSwitcher from "@/components/GoogleTranslateSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 
+function InputField({
+  label, icon, children,
+}: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+        {label}
+      </label>
+      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-3.5 border border-slate-200 dark:border-slate-700 gap-3 focus-within:border-blue-500 dark:focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+        <span className="text-slate-400 flex-shrink-0">{icon}</span>
+        <div className="w-px h-4 bg-slate-200 dark:bg-slate-600" />
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -23,80 +40,40 @@ export default function AuthPage() {
 
   const handleSubmit = async () => {
     setError("");
-
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
       return;
     }
-
     if (mode === "signup") {
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters.");
-        return;
-      }
+      if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
       if (!name.trim()) { setError("Please enter your name."); return; }
       if (!age || Number(age) < 18) { setError("Age must be 18 or older."); return; }
     }
-
     setLoading(true);
-
     if (mode === "signup") {
-      // Signup with password (no OTP)
-      const { data, error: signUpError } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-
+      if (signUpError) { setError(signUpError.message); setLoading(false); return; }
       const user = data.user;
       if (user) {
-        const { data: existing } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .single();
-
+        const { data: existing } = await supabase.from("profiles").select("id").eq("id", user.id).single();
         if (!existing) {
           const walletAddress = `0x${user.id.replace(/-/g, '').slice(0, 40)}`;
-          
           const { error: profileError } = await supabase.from("profiles").insert([{
-            id: user.id,
-            email,
-            name: name.trim(),
-            age: Number(age),
-            reputation_score: 0,
-            wallet_address: walletAddress,
-            wallet_balance: 2.0,
+            id: user.id, email, name: name.trim(), age: Number(age),
+            reputation_score: 0, wallet_address: walletAddress, wallet_balance: 2.0,
           }]);
           if (profileError) { setError(profileError.message); setLoading(false); return; }
         }
-        
         router.push("/dashboard");
       }
-
     } else {
-      // Login with OTP (no password)
       const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false,
-        }
+        email, options: { shouldCreateUser: false },
       });
-
-      if (otpError) {
-        setError("Failed to send OTP. Please check your email and try again.");
-        setLoading(false);
-        return;
-      }
-
+      if (otpError) { setError("Failed to send OTP. Please check your email."); setLoading(false); return; }
       setOtpSent(true);
       setError("OTP sent! Check your email.");
     }
@@ -104,267 +81,245 @@ export default function AuthPage() {
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP.");
-      return;
-    }
-
-    setVerifying(true);
-    setError("");
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "email",
-    });
-
-    if (verifyError) {
-      setError("Invalid OTP. Please try again.");
-      setVerifying(false);
-      return;
-    }
-
-    // OTP verified, redirect to dashboard
+    if (!otp || otp.length !== 6) { setError("Please enter a valid 6-digit OTP."); return; }
+    setVerifying(true); setError("");
+    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: otp, type: "email" });
+    if (verifyError) { setError("Invalid OTP. Please try again."); setVerifying(false); return; }
     router.push("/dashboard");
     setVerifying(false);
   };
 
   const handleResendOtp = async () => {
-    setError("");
-    setLoading(true);
-
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-      }
-    });
-
-    if (otpError) {
-      setError("Failed to resend OTP. Please try again.");
-    } else {
-      setError("OTP resent! Check your email.");
-    }
-
+    setError(""); setLoading(true);
+    const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    setError(otpError ? "Failed to resend OTP." : "OTP resent! Check your email.");
     setLoading(false);
   };
 
   const switchMode = () => {
     setMode(mode === "login" ? "signup" : "login");
-    setError("");
-    setPassword("");
-    setOtpSent(false);
-    setOtp("");
+    setError(""); setPassword(""); setOtpSent(false); setOtp("");
   };
 
-  return (
-    <div className="min-h-screen bg-[#eef2f7] dark:bg-gray-950 flex flex-col lg:items-center lg:justify-center transition-colors">
-      <div className="w-full max-w-sm mx-auto flex flex-col px-6 pt-10 pb-8 lg:bg-white lg:dark:bg-gray-900 lg:rounded-3xl lg:shadow-lg lg:my-8 transition-colors">
+  const isLoading = loading || verifying;
 
-        {/* Logo + Language Switcher + Theme */}
-        <div className="mb-8 flex items-center justify-between gap-2">
-          <span className="text-[#1a2fb8] dark:text-blue-400 font-bold text-xl tracking-tight">Vault</span>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <GoogleTranslateSwitcher />
-          </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col lg:flex-row transition-colors">
+
+      {/* ── Left panel — branding (desktop only) ── */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[40%] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 flex-col justify-between p-12 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/5 rounded-full" />
+          <div className="absolute -bottom-32 -left-16 w-80 h-80 bg-white/5 rounded-full" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full" />
         </div>
 
-        {/* Heading */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-[#111827] dark:text-white leading-tight mb-2">
-            {mode === "login" ? "Welcome back." : "Create account."}
-          </h1>
-          <p className="text-[#6b7280] dark:text-gray-400 text-base leading-relaxed">
-            {mode === "login"
-              ? otpSent 
-                ? "Enter the OTP sent to your email."
-                : "We'll send a one-time code to your email."
-              : "Sign up to get started on Vault."}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-16">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+              </svg>
+            </div>
+            <span className="text-white font-bold text-2xl tracking-tight">Vault</span>
+          </div>
+
+          <h2 className="text-4xl xl:text-5xl font-black text-white leading-tight mb-6">
+            Decentralized<br />Lending,<br />Simplified.
+          </h2>
+          <p className="text-blue-100 text-lg leading-relaxed max-w-sm">
+            Deposit, borrow, and repay with full transparency. Your credit score, your control.
           </p>
         </div>
 
-        {/* Email */}
-        <div className="mb-4">
-          <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-            Email Address
-          </label>
-          <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-            </svg>
-            <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              disabled={otpSent && mode === "login"}
-              className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent disabled:opacity-50"
-            />
-          </div>
+        <div className="relative z-10 grid grid-cols-3 gap-4">
+          {[
+            { label: "Pool Liquidity", value: "₹2.4L+" },
+            { label: "Active Users", value: "1,200+" },
+            { label: "Avg Credit Score", value: "720" },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white/10 backdrop-blur rounded-2xl p-4">
+              <p className="text-white font-black text-xl">{stat.value}</p>
+              <p className="text-blue-200 text-xs mt-0.5">{stat.label}</p>
+            </div>
+          ))}
         </div>
+      </div>
 
-        {/* OTP Input (Login mode only, after OTP sent) */}
-        {mode === "login" && otpSent && (
-          <div className="mb-4">
-            <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-              Enter OTP
-            </label>
-            <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
+      {/* ── Right panel — form ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 lg:py-0">
+        <div className="w-full max-w-md">
+
+          {/* Mobile logo */}
+          <div className="flex items-center justify-between mb-8 lg:hidden">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                </svg>
+              </div>
+              <span className="text-slate-900 dark:text-white font-bold text-xl">Vault</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <GoogleTranslateSwitcher />
+            </div>
+          </div>
+
+          {/* Desktop controls */}
+          <div className="hidden lg:flex justify-end mb-6 gap-2">
+            <ThemeToggle />
+            <GoogleTranslateSwitcher />
+          </div>
+
+          {/* Heading */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">
+              {mode === "login" ? (otpSent ? "Check your email" : "Welcome back") : "Create your account"}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              {mode === "login"
+                ? otpSent ? "Enter the 6-digit code we sent you." : "We'll send a secure one-time code."
+                : "Join Vault and start lending today."}
+            </p>
+          </div>
+
+          {/* Form */}
+          <div className="space-y-0">
+            <InputField label="Email Address" icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+              </svg>
+            }>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={otpSent && mode === "login"}
+                className="flex-1 outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 bg-transparent disabled:opacity-50"
+              />
+            </InputField>
+
+            {mode === "login" && otpSent && (
+              <InputField label="One-Time Password" icon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                </svg>
+              }>
+                <input
+                  type="text" value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                  placeholder="123456" maxLength={6}
+                  className="flex-1 outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 bg-transparent tracking-[0.3em] font-mono"
+                />
+                <button onClick={handleResendOtp} disabled={isLoading}
+                  className="text-xs text-blue-600 dark:text-blue-400 font-semibold whitespace-nowrap hover:underline disabled:opacity-50">
+                  Resend
+                </button>
+              </InputField>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <InputField label="Password" icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                  </svg>
+                }>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="flex-1 outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 bg-transparent" />
+                </InputField>
+
+                <InputField label="Full Name" icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+                  </svg>
+                }>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                    placeholder="Your full name"
+                    className="flex-1 outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 bg-transparent" />
+                </InputField>
+
+                <InputField label="Age" icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
+                  </svg>
+                }>
+                  <input type="number" value={age} onChange={(e) => setAge(e.target.value)}
+                    placeholder="Must be 18+" min="18"
+                    className="flex-1 outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 bg-transparent" />
+                </InputField>
+              </>
+            )}
+          </div>
+
+          {/* Error / info */}
+          {error && (
+            <div className={`rounded-2xl px-4 py-3 text-sm mb-4 ${
+              error.includes("sent") || error.includes("resent")
+                ? "bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400"
+                : "bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"
+            }`}>
+              {error}
+            </div>
+          )}
+
+          {/* CTA button */}
+          <button
+            onClick={mode === "login" && otpSent ? handleVerifyOtp : handleSubmit}
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl py-4 font-bold text-base flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] shadow-lg shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed mb-4"
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                Please wait...
+              </>
+            ) : (
+              <>
+                {mode === "login" && otpSent ? "Verify & Sign In" : mode === "login" ? "Send OTP" : "Create Account"}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+                </svg>
+              </>
+            )}
+          </button>
+
+          {/* Mode toggle */}
+          <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">
+            {mode === "login" ? "New to Vault? " : "Already have an account? "}
+            <button onClick={switchMode} className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+              {mode === "login" ? "Create account" : "Sign in"}
+            </button>
+          </p>
+
+          {/* Trust badges */}
+          <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#16a34a">
                 <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
               </svg>
-              <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
-                placeholder="6-digit code"
-                maxLength={6}
-                className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent tracking-widest"
-              />
             </div>
-            <button
-              onClick={handleResendOtp}
-              disabled={loading}
-              className="text-sm text-[#1a2fb8] dark:text-blue-400 font-semibold mt-2 hover:underline disabled:opacity-50"
-            >
-              Resend OTP
-            </button>
-          </div>
-        )}
-
-        {/* Password (Signup mode only) */}
-        {mode === "signup" && (
-          <div className="mb-4">
-            <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-              Password
-            </label>
-            <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-              </svg>
-              <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                placeholder="Enter your password"
-                className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
-              />
+            <div>
+              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                {mode === "login" ? "Secure OTP Login" : "Bank-grade Security"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {mode === "login" ? "No password stored. Email OTP only." : "Your data is encrypted and non-custodial."}
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Signup-only fields */}
-        {mode === "signup" && (
-          <>
-            <div className="mb-4">
-              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-                Full Name
-              </label>
-              <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                  <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
-                </svg>
-                <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
-                />
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase mb-2">
-                Age
-              </label>
-              <div className="flex items-center bg-white dark:bg-gray-800 rounded-2xl px-4 py-4 shadow-sm border border-[#e5e9f0] dark:border-gray-700 gap-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#6b7280" className="flex-shrink-0">
-                  <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
-                </svg>
-                <div className="w-px h-5 bg-[#d1d5db] dark:bg-gray-600" />
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Your age"
-                  min="18"
-                  className="flex-1 outline-none text-base text-[#374151] dark:text-gray-100 placeholder-[#9ca3af] dark:placeholder-gray-500 bg-transparent"
-                />
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Submit */}
-        <button
-          onClick={mode === "login" && otpSent ? handleVerifyOtp : handleSubmit}
-          disabled={loading || verifying}
-          className="w-full bg-[#1a2fb8] text-white rounded-2xl py-5 font-bold text-lg flex items-center justify-center gap-3 hover:bg-[#1527a0] transition-all active:scale-95 mb-4 disabled:opacity-70"
-        >
-          {loading || verifying ? "Please wait..." : 
-           mode === "login" && otpSent ? "Verify OTP" :
-           mode === "login" ? "Send OTP" : "Sign Up"}
-          {!loading && !verifying && (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-            </svg>
-          )}
-        </button>
-
-        {/* Mode toggle */}
-        <p className="text-center text-sm text-[#6b7280] dark:text-gray-400 mb-6">
-          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-          <button onClick={switchMode} className="text-[#1a2fb8] dark:text-blue-400 font-bold">
-            {mode === "login" ? "Sign Up" : "Log In"}
-          </button>
-        </p>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm rounded-2xl px-4 py-3 mb-4">
-            {error}
-          </div>
-        )}
-
-        {/* Security Badge */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex items-start gap-4 mb-6 border border-[#e5e9f0] dark:border-gray-700 shadow-sm">
-          <div className="w-10 h-10 bg-[#4ade80] rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#14532d">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-[#16a34a] tracking-widest uppercase mb-1">
-              {mode === "login" ? "Two-Factor Authentication" : "Institutional Security"}
-            </p>
-            <p className="text-sm text-[#374151] dark:text-gray-300 leading-relaxed">
-              {mode === "login" 
-                ? "Enhanced security with email-based OTP verification."
-                : "Your identity is verified on-chain. Secure, private, and non-custodial."}
-            </p>
-          </div>
+          <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6">
+            By continuing, you agree to our{" "}
+            <span className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">Terms</span> and{" "}
+            <span className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">Privacy Policy</span>.
+          </p>
         </div>
-
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
-          <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">
-            Decentralized Protocol Live
-          </span>
-        </div>
-
-        <p className="text-center text-xs text-[#9ca3af] dark:text-gray-500 leading-relaxed mt-auto">
-          By continuing, you agree to our{" "}
-          <span className="text-[#1a2fb8] dark:text-blue-400 underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="text-[#1a2fb8] dark:text-blue-400 underline cursor-pointer">Privacy Policy</span>.
-        </p>
       </div>
     </div>
   );

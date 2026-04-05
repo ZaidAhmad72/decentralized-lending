@@ -11,6 +11,7 @@ import {
   getUserAllActivePoolLoans, repayPrivatePoolLoan,
   type PoolLoanWithMeta,
 } from "@/services/privatePoolService";
+import { showToast } from "@/components/Toast";
 
 type RepayUnit = "INR" | "USD" | "ETH";
 
@@ -112,6 +113,7 @@ export default function RepayPage() {
       await repayLoan(loan.id, userId, amt);
       setRepaid(true);
       setWalletBalance((prev) => prev - amt);
+      showToast("success", "Loan Repaid!", `${fmtUnit(amt, repayUnit)} repaid successfully. Credit score updated.`);
       setTimeout(() => router.push("/dashboard"), 2000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Repayment failed.");
@@ -138,6 +140,7 @@ export default function RepayPage() {
       await repayPrivatePoolLoan(userId, loanId, amtETH);
       setPoolRepayMsg((prev) => ({ ...prev, [loanId]: "✅ Repaid " + fmtUnit(amtETH, unit) }));
       setWalletBalance((prev) => prev - amtETH);
+      showToast("success", "Pool Loan Repaid!", `${fmtUnit(amtETH, unit)} repaid to ${privateLoans.find(l => l.id === loanId)?.pool_name ?? "pool"}.`);
       // Remove loan from list immediately
       setPrivateLoans((prev) => prev.filter((l) => l.id !== loanId));
     } catch (err) {

@@ -13,6 +13,7 @@ import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import { getFraudProfile, type FraudProfile } from "@/services/fraudDetection";
 import { BlacklistBanner, FraudWarning } from "@/components/FraudBanner";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
+import { showToast } from "@/components/Toast";
 import { 
   CryptoSymbol, 
   CRYPTO_CONFIGS, 
@@ -174,6 +175,11 @@ export default function RequestLoanPage() {
       
       // Convert to ETH for backend
       await borrowFromPool(user.id, amountETH, selectedDays, selectedCrypto, amountNum);
+      showToast(
+        "success",
+        "Loan Approved!",
+        `${formatCryptoAmount(amountNum, selectedCrypto)} ${selectedCrypto} (${formatINR(amountINR)}) transferred to your wallet.`
+      );
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to borrow from pool.");

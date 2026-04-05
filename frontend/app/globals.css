@@ -1,27 +1,70 @@
 ﻿@import "tailwindcss";
 
-/* ΓöÇΓöÇ Enable class-based dark mode (Tailwind v4 syntax) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Enable class-based dark mode (Tailwind v4 syntax) ── */
 @variant dark (&:where(.dark, .dark *));
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
-  background-color: #eef2f7;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #111827;
+  background-color: #f0f4f8;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+  line-height: 1.6;
 }
 
-/* ΓöÇΓöÇ Dark mode body ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Dark mode body ── */
 .dark body {
-  background-color: #030712;
-  color: #f9fafb;
+  background-color: #020617;
+  color: #f8fafc;
 }
 
-/* ΓöÇΓöÇ Google Translate banner suppression ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Focus ring — accessible for all users ── */
+:focus-visible {
+  outline: 2px solid #3b5bdb;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 
-/* Hide the top banner iframe ΓÇö CSS fires before JS, catches early flash */
+/* ── Smooth card hover transitions ── */
+.card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+/* ── Loading skeleton animation ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+/* ── Google Translate banner suppression ── */
 .goog-te-banner-frame.skiptranslate,
 .goog-te-banner-frame,
 iframe.goog-te-banner-frame {
@@ -31,8 +74,6 @@ iframe.goog-te-banner-frame {
   max-height: 0 !important;
 }
 
-/* Lock body position ΓÇö GT injects inline top:40px to push content down.
-   The .gt-banner-removed class is added by JS for extra specificity. */
 body,
 body.gt-banner-removed {
   top: 0px !important;
@@ -40,7 +81,6 @@ body.gt-banner-removed {
   margin-top: 0 !important;
 }
 
-/* Hide tooltip and text-highlight artifacts */
 .goog-tooltip,
 .goog-tooltip:hover,
 .goog-text-highlight {
@@ -49,7 +89,6 @@ body.gt-banner-removed {
   box-shadow: none !important;
 }
 
-/* Hide attribution logo and gadget text */
 .goog-logo-link,
 .goog-te-gadget span,
 .goog-te-gadget a {
@@ -61,23 +100,20 @@ body.gt-banner-removed {
   height: 0 !important;
 }
 
-/* Hide the SDK anchor div we inject */
 #google_translate_element {
   display: none !important;
   height: 0 !important;
   overflow: hidden !important;
 }
 
-/* Prevent the GT "skiptranslate" class from adding visible UI */
 .skiptranslate {
   display: none !important;
 }
 
-/* ΓöÇΓöÇ Dark mode: Google Translate dropdown readability ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 .dark .goog-te-combo,
 .dark .goog-te-menu-value,
 .dark .goog-te-menu2 {
-  background-color: #1f2937 !important;
-  color: #f9fafb !important;
-  border-color: #374151 !important;
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
 }

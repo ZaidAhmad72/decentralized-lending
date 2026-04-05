@@ -3,6 +3,7 @@ import "./globals.css";
 import { WalletProvider } from "@/wallet/walletContext";
 import { ThemeProvider } from "@/context/themeContext";
 import GoogleTranslate from "@/components/GoogleTranslate";
+import { ToastContainer } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "Vault",
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <WalletProvider>
             <GoogleTranslate />
+            <ToastContainer />
             {children}
           </WalletProvider>
         </ThemeProvider>
