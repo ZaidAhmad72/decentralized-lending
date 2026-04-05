@@ -47,9 +47,19 @@ export default function TransactionsPage() {
 
   // Helper: get ETH value from transaction (handles old and new format)
   const toETH = (tx: Transaction) => {
-    if (tx.amount_eth > 0) return tx.amount_eth;
-    if (tx.tx_hash) return tx.amount;
-    return ethPrice > 0 ? tx.amount / ethPrice : 0;
+    // Check if amount_eth exists and is a valid number
+    if (tx.amount_eth !== undefined && tx.amount_eth !== null && !isNaN(tx.amount_eth)) {
+      return tx.amount_eth;
+    }
+    // Fallback to amount field
+    if (tx.amount !== undefined && tx.amount !== null && !isNaN(tx.amount)) {
+      return tx.amount;
+    }
+    // Last resort: try to convert from INR if we have ethPrice
+    if (ethPrice > 0 && tx.amount_original) {
+      return tx.amount_original / ethPrice;
+    }
+    return 0;
   };
 
   const totals = {
@@ -128,12 +138,12 @@ export default function TransactionsPage() {
             <div className="divide-y divide-[#f3f4f6] dark:divide-gray-700">
               {filtered.map((tx) => {
                 const cfg = TYPE_CONFIG[tx.type];
-                // Use new fields if available, fallback for old data
-                const hasNewFields = tx.amount_eth > 0;
-                const ethAmt = hasNewFields ? tx.amount_eth : (tx.tx_hash ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0));
+                // Get ETH amount using helper
+                const ethAmt = toETH(tx);
                 const displayINR = ethToINR(ethAmt, ethPrice);
                 const displayCurrency = tx.currency || 'ETH';
-                const displayOriginal = hasNewFields ? tx.amount_original : tx.amount;
+                // Use amount_original if available, otherwise use amount or ethAmt
+                const displayOriginal = tx.amount_original || tx.amount || ethAmt;
                 return (
                   <div key={tx.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f9fafb] dark:hover:bg-gray-750 transition-colors">
                     <div className="flex items-center gap-3">
