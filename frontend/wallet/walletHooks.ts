@@ -2,25 +2,20 @@
 
 import { useWalletContext } from "./walletContext";
 
-/**
- * Primary hook for consuming wallet state throughout the app.
- */
 export function useWallet() {
-  const { address, balance, loading, error, refreshBalance } = useWalletContext();
-
-  const shortAddress = address
-    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+  const ctx = useWalletContext();
+  const shortAddress = ctx.address
+    ? ctx.address.slice(0, 6) + "..." + ctx.address.slice(-4)
     : null;
+  const isConnected = !!ctx.address && !ctx.loading;
+  return { ...ctx, shortAddress, isConnected };
+}
 
-  const isConnected = !!address && !loading;
+export function useWalletAddress(): string {
+  return useWalletContext().address ?? "";
+}
 
-  return {
-    address,
-    shortAddress,
-    balance,
-    loading,
-    error,
-    isConnected,
-    refreshBalance,
-  };
+export function useWalletReady(): boolean {
+  const { loading, address } = useWalletContext();
+  return !loading && address !== null;
 }

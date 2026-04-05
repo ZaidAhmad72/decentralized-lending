@@ -14,6 +14,19 @@ import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import { calculateHealthFactor, formatHealthFactor, getHealthFactorColor } from "@/services/creditScoreService";
 import type { ScoreBreakdown as ScoreBreakdownType } from "@/services/creditScoreService";
+import { createClient as createSupabaseClient } from "@/utils/supabase/client";
+
+// Fetch active private pool loans for the user (filter out dust loans < 0.00001 ETH)
+async function getUserActivePrivateLoans(userId: string) {
+  const sb = createSupabaseClient();
+  const { data } = await sb
+    .from("pool_loans")
+    .select("id, amount, due_date, pool_id, private_pools(pool_name)")
+    .eq("borrower_id", userId)
+    .eq("status", "active")
+    .gt("amount", 0.00001); // exclude dust/ghost loans
+  return data ?? [];
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,6 +46,7 @@ export default function DashboardPage() {
   const [scoreDecay, setScoreDecay] = useState<number>(0);
   const [gasSaved, setGasSaved] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [privateLoans, setPrivateLoans] = useState<{ id: string; amount: number; due_date: string; pool_id: string; private_pools: { pool_name: string } | null }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +104,10 @@ export default function DashboardPage() {
         .eq("user_id", user.id);
       
       setGasSaved((totalTx || 0) * 0.465);
+
+      // Fetch active private pool loans
+      const pLoans = await getUserActivePrivateLoans(user.id);
+      setPrivateLoans(pLoans as typeof privateLoans);
 
       setLoading(false);
     };
@@ -228,6 +246,38 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
+
+              {/* Private Pool Active Loans */}
+              {privateLoans.length > 0 && (
+                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-[#fef3c7] dark:border-yellow-800">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 bg-[#fef3c7] rounded-lg flex items-center justify-center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#d97706"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg>
+                    </div>
+                    <span className="text-xs font-semibold tracking-widest text-[#6b7280] dark:text-gray-400 uppercase">Private Pool Loans</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-[#fef3c7] text-[#d97706]">{privateLoans.length} pending</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {privateLoans.map((pl) => {
+                      const daysLeft = Math.max(0, Math.ceil((new Date(pl.due_date).getTime() - Date.now()) / 86400000));
+                      const amtINR = ethToINR(pl.amount, ethPrice);
+                      const poolName = (pl.private_pools as { pool_name: string } | null)?.pool_name ?? "Private Pool";
+                      return (
+                        <div key={pl.id} className="flex items-center justify-between py-2 border-b border-[#f3f4f6] dark:border-gray-700 last:border-0">
+                          <div>
+                            <p className="text-sm font-bold text-[#111827] dark:text-white">{poolName}</p>
+                            <p className="text-xs text-[#6b7280] dark:text-gray-400">Due in {daysLeft}d · {pl.amount.toFixed(4)} ETH</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-[#d97706]">{formatINR(amtINR)}</p>
+                            <p className="text-[10px] text-[#9ca3af]">active</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

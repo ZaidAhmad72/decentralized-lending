@@ -121,8 +121,11 @@ export async function borrowFromPool(
 }
 
 // ─── REPAY (maps to LoanManager.repayLoan()) ─────────────────────────────────
-export async function repayLoan(loanId: string, borrowerId: string): Promise<string> {
-  // 1. Fetch loan
+export async function repayLoan(
+  loanId: string,
+  borrowerId: string,
+  customAmount?: number  // optional partial repay in ETH; defaults to full amount
+): Promise<string> {
   const { data: loan, error: loanFetchError } = await supabase
     .from("loans")
     .select("amount, interest_rate, duration_days, due_date, status")
@@ -132,11 +135,14 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
   if (loanFetchError) throw new Error(loanFetchError.message);
   if (loan.status !== "active") throw new Error("Loan is not active.");
 
-  // 2. Calculate repayment = principal + interest
   const interest = loan.amount * (loan.interest_rate / 100) * loan.duration_days;
   const totalRepayment = loan.amount + interest;
 
-  // 3. Check wallet balance
+  // Use custom amount if provided, otherwise full repayment
+  const repayAmount = customAmount ?? totalRepayment;
+  if (repayAmount <= 0) throw new Error("Repay amount must be greater than 0");
+  if (repayAmount > totalRepayment) throw new Error(`Cannot repay more than total due: ${totalRepayment.toFixed(6)} ETH`);
+
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("wallet_balance")
@@ -144,51 +150,57 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
     .single();
   if (profileError) throw new Error(profileError.message);
 
-  if (profile.wallet_balance < totalRepayment) {
+  if (profile.wallet_balance < repayAmount) {
     throw new Error(
-      `Insufficient wallet balance. Need: ${totalRepayment.toFixed(6)} ETH, Have: ${profile.wallet_balance.toFixed(6)} ETH`
+      `Insufficient wallet balance. Need: ${repayAmount.toFixed(6)} ETH, Have: ${profile.wallet_balance.toFixed(6)} ETH`
     );
   }
 
-  // 4. Determine if on-time
   const onTime = new Date() <= new Date(loan.due_date);
-
-  // 5. Simulate tx
+  const isFullRepay = Math.abs(repayAmount - totalRepayment) < 0.000001;
   const txHash = await simulateTransaction("repay");
 
-  // 6. Deduct from wallet
+  // Deduct from wallet
   await supabase
     .from("profiles")
-    .update({ wallet_balance: profile.wallet_balance - totalRepayment })
+    .update({ wallet_balance: profile.wallet_balance - repayAmount })
     .eq("id", borrowerId);
 
-  // 7. Mark loan repaid
-  const { error: loanUpdateError } = await supabase
-    .from("loans")
-    .update({ 
-      status: "repaid",
-      repaid_at: new Date().toISOString(),
-    })
-    .eq("id", loanId);
-  if (loanUpdateError) throw new Error(loanUpdateError.message);
+  // Only mark fully repaid if paying full amount
+  if (isFullRepay) {
+    await supabase
+      .from("loans")
+      .update({ status: "repaid", repaid_at: new Date().toISOString() })
+      .eq("id", loanId);
+    
+    // Call pool repay (decreases totalBorrowed, adds interest to totalLiquidity)
+    await poolRepay(loan.amount, interest);
+    
+    // Update reputation: recordRepayment()
+    await recordRepayment(borrowerId, onTime);
+    
+    // Recalculate credit score
+    await recalculateCreditScore(borrowerId);
+  } else {
+    // Partial repay — reduce the loan amount
+    const remaining = totalRepayment - repayAmount;
+    // Proportionally reduce principal (approximate)
+    const principalPaid = repayAmount * (loan.amount / totalRepayment);
+    await supabase
+      .from("loans")
+      .update({ amount: Math.max(0, loan.amount - principalPaid) })
+      .eq("id", loanId);
+    await poolRepay(principalPaid, 0);
+  }
 
-  // 8. Call pool repay (decreases totalBorrowed, adds interest to totalLiquidity)
-  await poolRepay(loan.amount, interest);
-
-  // 9. Update reputation: recordRepayment()
-  await recordRepayment(borrowerId, onTime);
-
-  // 9.1. Recalculate credit score
-  await recalculateCreditScore(borrowerId);
-
-  // 10. Log transaction
+  // Log transaction
   const { error: txError } = await supabase.from("transactions").insert([{
     user_id: borrowerId,
     type: "repay",
     currency: 'ETH',
-    amount_original: loan.amount,
-    amount_eth: loan.amount,
-    amount: loan.amount,
+    amount_original: repayAmount,
+    amount_eth: repayAmount,
+    amount: repayAmount,
     related_loan_id: loanId,
     tx_hash: txHash,
   }]);
