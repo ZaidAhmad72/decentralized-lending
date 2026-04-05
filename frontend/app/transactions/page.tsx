@@ -8,10 +8,10 @@ import { getUserTransactions, type Transaction } from "@/services/poolService";
 import { getEthPriceINR, formatINR, ethToINR } from "@/utils/getEthPrice";
 
 const TYPE_CONFIG = {
-  deposit:  { label: "Deposit",  color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",  icon: "↓", sign: "+" },
-  borrow:   { label: "Borrow",   color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",     icon: "↗", sign: "+" },
+  deposit:  { label: "Deposit",  color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",    icon: "↓", sign: "+" },
+  borrow:   { label: "Borrow",   color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300", icon: "↗", sign: "-" },
   repay:    { label: "Repay",    color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", icon: "↙", sign: "-" },
-  withdraw: { label: "Withdraw", color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300", icon: "↑", sign: "-" },
+  withdraw: { label: "Withdraw", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",            icon: "↑", sign: "-" },
 };
 
 export default function TransactionsPage() {
@@ -45,11 +45,14 @@ export default function TransactionsPage() {
 
   const filtered = filter === "all" ? transactions : transactions.filter(t => t.type === filter);
 
+  // Helper: convert tx amount to ETH (old txs stored INR, new store ETH)
+  const toETH = (tx: Transaction) => tx.tx_hash ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0);
+
   const totals = {
-    deposited: transactions.filter(t => t.type === "deposit").reduce((s, t) => s + t.amount, 0),
-    borrowed:  transactions.filter(t => t.type === "borrow").reduce((s, t) => s + t.amount, 0),
-    repaid:    transactions.filter(t => t.type === "repay").reduce((s, t) => s + t.amount, 0),
-    withdrawn: transactions.filter(t => t.type === "withdraw").reduce((s, t) => s + t.amount, 0),
+    deposited: transactions.filter(t => t.type === "deposit").reduce((s, t) => s + toETH(t), 0),
+    borrowed:  transactions.filter(t => t.type === "borrow").reduce((s, t) => s + toETH(t), 0),
+    repaid:    transactions.filter(t => t.type === "repay").reduce((s, t) => s + toETH(t), 0),
+    withdrawn: transactions.filter(t => t.type === "withdraw").reduce((s, t) => s + toETH(t), 0),
   };
 
   const formatDate = (iso: string) => {
@@ -121,7 +124,10 @@ export default function TransactionsPage() {
             <div className="divide-y divide-[#f3f4f6] dark:divide-gray-700">
               {filtered.map((tx) => {
                 const cfg = TYPE_CONFIG[tx.type];
-                const inrAmount = ethToINR(tx.amount, ethPrice);
+                // Old transactions stored raw INR values (no tx_hash), new ones store ETH
+                const isNewTx = !!tx.tx_hash;
+                const displayINR = isNewTx ? ethToINR(tx.amount, ethPrice) : tx.amount;
+                const displayETH = isNewTx ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0);
                 return (
                   <div key={tx.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f9fafb] dark:hover:bg-gray-750 transition-colors">
                     <div className="flex items-center gap-3">
@@ -142,9 +148,9 @@ export default function TransactionsPage() {
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-black ${cfg.sign === "+" ? "text-green-600" : "text-red-500"}`}>
-                        {cfg.sign}{formatINR(inrAmount)}
+                        {cfg.sign}{formatINR(displayINR)}
                       </p>
-                      <p className="text-[10px] text-[#9ca3af]">{cfg.sign}{tx.amount.toFixed(6)} ETH</p>
+                      <p className="text-[10px] text-[#9ca3af]">{cfg.sign}{displayETH.toFixed(6)} ETH</p>
                     </div>
                   </div>
                 );
