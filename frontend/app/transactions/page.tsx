@@ -45,8 +45,12 @@ export default function TransactionsPage() {
 
   const filtered = filter === "all" ? transactions : transactions.filter(t => t.type === filter);
 
-  // Helper: convert tx amount to ETH (old txs stored INR, new store ETH)
-  const toETH = (tx: Transaction) => tx.tx_hash ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0);
+  // Helper: get ETH value from transaction (handles old and new format)
+  const toETH = (tx: Transaction) => {
+    if (tx.amount_eth > 0) return tx.amount_eth;
+    if (tx.tx_hash) return tx.amount;
+    return ethPrice > 0 ? tx.amount / ethPrice : 0;
+  };
 
   const totals = {
     deposited: transactions.filter(t => t.type === "deposit").reduce((s, t) => s + toETH(t), 0),
@@ -124,10 +128,12 @@ export default function TransactionsPage() {
             <div className="divide-y divide-[#f3f4f6] dark:divide-gray-700">
               {filtered.map((tx) => {
                 const cfg = TYPE_CONFIG[tx.type];
-                // Old transactions stored raw INR values (no tx_hash), new ones store ETH
-                const isNewTx = !!tx.tx_hash;
-                const displayINR = isNewTx ? ethToINR(tx.amount, ethPrice) : tx.amount;
-                const displayETH = isNewTx ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0);
+                // Use new fields if available, fallback for old data
+                const hasNewFields = tx.amount_eth > 0;
+                const ethAmt = hasNewFields ? tx.amount_eth : (tx.tx_hash ? tx.amount : (ethPrice > 0 ? tx.amount / ethPrice : 0));
+                const displayINR = ethToINR(ethAmt, ethPrice);
+                const displayCurrency = tx.currency || 'ETH';
+                const displayOriginal = hasNewFields ? tx.amount_original : tx.amount;
                 return (
                   <div key={tx.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f9fafb] dark:hover:bg-gray-750 transition-colors">
                     <div className="flex items-center gap-3">
@@ -150,7 +156,9 @@ export default function TransactionsPage() {
                       <p className={`text-sm font-black ${cfg.sign === "+" ? "text-green-600" : "text-red-500"}`}>
                         {cfg.sign}{formatINR(displayINR)}
                       </p>
-                      <p className="text-[10px] text-[#9ca3af]">{cfg.sign}{displayETH.toFixed(6)} ETH</p>
+                      <p className="text-[10px] text-[#9ca3af]">
+                        {cfg.sign}{displayOriginal?.toFixed(displayCurrency === 'ETH' ? 6 : 4)} {displayCurrency}
+                      </p>
                     </div>
                   </div>
                 );

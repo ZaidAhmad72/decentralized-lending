@@ -32,8 +32,10 @@ const DAILY_RATE = 0.024; // 0.024% per day
 // ─── BORROW (maps to LoanManager.createLoan()) ───────────────────────────────
 export async function borrowFromPool(
   borrowerId: string,
-  amount: number,       // in ETH (converted from INR in UI)
-  durationDays: number
+  amount: number,
+  durationDays: number,
+  currency: string = 'ETH',
+  originalAmount?: number
 ): Promise<string> {
   if (amount <= 0) throw new Error("Amount must be greater than 0");
   if (durationDays <= 0) throw new Error("Duration must be greater than 0");
@@ -103,13 +105,17 @@ export async function borrowFromPool(
   await recalculateCreditScore(borrowerId);
 
   // 9. Log transaction
-  await supabase.from("transactions").insert([{
+  const { error: txError } = await supabase.from("transactions").insert([{
     user_id: borrowerId,
     type: "borrow",
-    amount,
+    currency: currency,
+    amount_original: originalAmount ?? amount,
+    amount_eth: amount,
+    amount: amount,
     related_loan_id: loan.id,
     tx_hash: txHash,
   }]);
+  if (txError) console.error("Transaction log failed:", txError.message);
 
   return txHash;
 }
@@ -176,13 +182,17 @@ export async function repayLoan(loanId: string, borrowerId: string): Promise<str
   await recalculateCreditScore(borrowerId);
 
   // 10. Log transaction
-  await supabase.from("transactions").insert([{
+  const { error: txError } = await supabase.from("transactions").insert([{
     user_id: borrowerId,
     type: "repay",
+    currency: 'ETH',
+    amount_original: loan.amount,
+    amount_eth: loan.amount,
     amount: loan.amount,
     related_loan_id: loanId,
     tx_hash: txHash,
   }]);
+  if (txError) console.error("Transaction log failed:", txError.message);
 
   return txHash;
 }

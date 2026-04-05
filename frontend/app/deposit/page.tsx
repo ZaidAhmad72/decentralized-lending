@@ -145,7 +145,7 @@ export default function DepositPage() {
       setTxHash(hash);
 
       // Deposit in ETH (backend stores ETH)
-      await depositToPool(user.id, depositAmountETH);
+      await depositToPool(user.id, depositAmountETH, selectedCrypto, depositAmountCrypto);
       setTxStatus("success");
       setSuccess(true);
       setAmount("");

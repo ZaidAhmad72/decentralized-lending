@@ -167,7 +167,7 @@ export default function RequestLoanPage() {
       }
       
       // Convert to ETH for backend
-      await borrowFromPool(user.id, amountETH, selectedDays);
+      await borrowFromPool(user.id, amountETH, selectedDays, selectedCrypto, amountNum);
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to borrow from pool.");

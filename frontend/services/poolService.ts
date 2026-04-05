@@ -75,7 +75,7 @@ export async function getUserTotalDeposited(userId: string): Promise<number> {
 
 // ─── DEPOSIT (maps to LendingPool.deposit()) ─────────────────────────────────
 // amount is in ETH (stored), INR conversion happens in UI layer
-export async function depositToPool(userId: string, amount: number): Promise<string> {
+export async function depositToPool(userId: string, amount: number, currency: string = 'ETH', originalAmount?: number): Promise<string> {
   if (amount <= 0) throw new Error("Amount must be greater than 0");
 
   // 1. Check wallet balance
@@ -141,12 +141,16 @@ export async function depositToPool(userId: string, amount: number): Promise<str
   }
 
   // 9. Log transaction
-  await supabase.from("transactions").insert([{
+  const { error: txError } = await supabase.from("transactions").insert([{
     user_id: userId,
     type: "deposit",
-    amount,
+    currency: currency,
+    amount_original: originalAmount ?? amount,
+    amount_eth: amount,
+    amount: amount,
     tx_hash: txHash,
   }]);
+  if (txError) console.error("Transaction log failed:", txError.message);
 
   // 10. Recalculate credit score
   await recalculateCreditScore(userId);
@@ -235,7 +239,10 @@ export interface Transaction {
   id: string;
   user_id: string;
   type: "deposit" | "borrow" | "repay" | "withdraw";
-  amount: number;
+  currency: string;           // original currency (ETH, BTC, USDC, etc.)
+  amount_original: number;    // what user entered
+  amount_eth: number;         // ETH equivalent (used for all calculations)
+  amount: number;             // legacy field (keep for backward compat)
   related_loan_id: string | null;
   tx_hash: string | null;
   created_at: string;
