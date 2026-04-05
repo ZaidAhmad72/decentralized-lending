@@ -186,15 +186,25 @@ export async function withdrawFromPool(
   const sharesToBurn = (amountETH * pool.total_shares) / pool.total_liquidity;
   const userShares = await getUserShares(userId);
   
-  // Allow small rounding differences (within 0.0001% of user shares)
-  const epsilon = userShares * 0.000001;
-  const isFullWithdraw = Math.abs(sharesToBurn - userShares) <= epsilon;
+  // Allow small rounding differences (within 0.01% of user shares for safety)
+  const epsilon = Math.max(userShares * 0.0001, 0.000001); // At least 1e-6 for very small amounts
+  const isFullWithdraw = Math.abs(sharesToBurn - userShares) <= epsilon || sharesToBurn >= userShares * 0.9999;
   
-  // If trying to withdraw all, use exact user shares to avoid rounding issues
+  // If trying to withdraw all (or very close to all), use exact user shares to avoid rounding issues
   const actualSharesToBurn = isFullWithdraw ? userShares : sharesToBurn;
   
-  if (actualSharesToBurn > userShares) {
-    throw new Error("Insufficient shares");
+  console.log('Withdraw debug:', {
+    amountETH,
+    sharesToBurn,
+    userShares,
+    epsilon,
+    isFullWithdraw,
+    actualSharesToBurn,
+    difference: sharesToBurn - userShares
+  });
+  
+  if (actualSharesToBurn > userShares + epsilon) {
+    throw new Error(`Insufficient shares. Need: ${actualSharesToBurn.toFixed(8)}, Have: ${userShares.toFixed(8)}`);
   }
 
   // 4. Simulate transaction
@@ -242,7 +252,6 @@ export async function withdrawFromPool(
     amount_eth: amountETH,
     amount: amountETH,
     tx_hash: txHash,
-    status: "success"
   }]);
   if (txError) console.error("Transaction log failed:", txError.message);
 
