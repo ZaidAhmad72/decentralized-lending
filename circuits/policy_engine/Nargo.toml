@@ -1,0 +1,7 @@
+[package]
+name = "policy_engine"
+type = "bin"
+authors = ["Antigravity"]
+compiler_version = ">=0.20.0"
+
+[dependencies]
