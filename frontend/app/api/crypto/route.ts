@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-static";
+
 const CG = "https://api.coingecko.com/api/v3";
 const CC = "https://min-api.cryptocompare.com/data";
 

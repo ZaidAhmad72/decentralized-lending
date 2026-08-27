@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-static";
+
 const COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price";
 
 // Server-side cache

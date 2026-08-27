@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { retrieveContext } from "@/utils/rag";
 
+export const dynamic = "force-static";
+
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English", hi: "Hindi", mr: "Marathi",
   ta: "Tamil",   te: "Telugu", kn: "Kannada", gu: "Gujarati",

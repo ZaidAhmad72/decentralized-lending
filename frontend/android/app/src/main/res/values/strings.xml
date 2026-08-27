@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DeFi Lending</string>
+    <string name="title_activity_main">DeFi Lending</string>
+    <string name="package_name">com.defi.lending</string>
+    <string name="custom_url_scheme">com.defi.lending</string>
+</resources>
